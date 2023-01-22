@@ -108,6 +108,9 @@ public class MazeGenerator : MonoBehaviour
 		var currentStep = NodeMap[_startNodeAddress];
 		var attempts = 0;
 		var maxAttempts = 1000;
+
+		// connect the start to the end
+		currentStep.Connected = true;
 		while (!currentStep.Address.Equals(_endNodeAddress) && attempts < maxAttempts)
 		{
 			attempts++;
@@ -129,6 +132,8 @@ public class MazeGenerator : MonoBehaviour
 				continue;
 			}
 
+			randomNode.Connected = true;
+
 			var pathID = new PathID(currentStep.Address, randomNeighbor);
 			var path = new Path(pathID);
 			CreatePathObject(path);
@@ -144,6 +149,7 @@ public class MazeGenerator : MonoBehaviour
 			Redraw();
 		}
 
+		// add some other random unconnected nodes to ensure a decent size
 		while (visitedList.Count < 3 * NodeMap.Keys.Count / 4)
 		{
 			var randomNodeAddress = Random.Range(0, visitedList.Count);
@@ -153,8 +159,11 @@ public class MazeGenerator : MonoBehaviour
 				var pathID = new PathID(randomNode.Address, node);
 				if (Paths.ContainsKey(pathID))
 				{
+					Debug.Log("can i remove this guard clause? exclusion list should be sufficient");
 					continue;
 				}
+				NodeMap[node].Connected = true;
+
 				var path = new Path(pathID);
 				CreatePathObject(path);
 				Paths.Add(pathID, path);
@@ -162,6 +171,7 @@ public class MazeGenerator : MonoBehaviour
 			}
 		}
 
+		// add some random additional paths whether to existing nodes or not
 		var randomAdditionalConnections = 0.1f * NodeMap.Keys.Count;
 		
 		for (var i = 0; i < randomAdditionalConnections; i++)
@@ -175,6 +185,9 @@ public class MazeGenerator : MonoBehaviour
 				{
 					continue;
 				}
+
+				NodeMap[neighbor].Connected = true;
+
 				var path = new Path(pathID);
 				CreatePathObject(path);
 				Paths.Add(pathID, path);
