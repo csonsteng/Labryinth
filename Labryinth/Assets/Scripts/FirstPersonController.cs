@@ -24,7 +24,8 @@ public class FirstPersonController : MonoBehaviour
 
     public void Initialize(Vector3 location)
 	{
-        transform.localPosition = location;
+        transform.localPosition = new Vector3(location.x, 0.5f, location.z);
+        
         Cursor.lockState = CursorLockMode.Locked;
         _initialized = true;
 	}

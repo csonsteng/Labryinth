@@ -5,7 +5,7 @@ using UnityEngine;
 
 public class MazeGenerator : MonoBehaviour
 {
-
+	public PathRenderer PathRenderer;
 
 	public int Size = 4;
 	public float Scale = 10f;
@@ -16,13 +16,18 @@ public class MazeGenerator : MonoBehaviour
 	public Material StartMaterial;
 	public Material EndMaterial;
 
+	
+
 	public readonly Dictionary<NodeAddress, Node> NodeMap = new();
 	public readonly Dictionary<PathID, Path> Paths = new();
+
+	public NodeAddress StartNode => _startNodeAddress;
+	public NodeAddress EndNode => _endNodeAddress;
 
 	private NodeAddress _startNodeAddress;
 	private NodeAddress _endNodeAddress;
 
-	public void Start()
+	private void Start()
 	{
 		Logger.Disable();
 		Redraw();
@@ -35,6 +40,7 @@ public class MazeGenerator : MonoBehaviour
 		Generate();
 		Draw();
 		StartGame();
+		PathRenderer.Generate(this);
 	}
 
 	private void Clear()
