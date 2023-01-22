@@ -1,3 +1,9 @@
+Labryinth\Library
+Labryinth\Library\*
+Labryinth\Temp
+Labryinth\Temp\*
+Labryinth\Logs
+Labryinth\Logs\*
 Labryinth/Library
 Labryinth/Library/*
 Labryinth/Temp
