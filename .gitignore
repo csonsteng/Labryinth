@@ -10,3 +10,7 @@ Labryinth/Temp
 Labryinth/Temp/*
 Labryinth/Logs
 Labryinth/Logs/*
+*.cache
+*.csproj
+*.csproj
+Labryinth/.vs/Labryinth/v16/.suo
