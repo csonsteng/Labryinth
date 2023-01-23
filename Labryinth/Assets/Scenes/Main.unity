@@ -1217,8 +1217,8 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   PathRenderer: {fileID: 703719141}
-  Size: 10
-  Scale: 15
+  Size: 3
+  Scale: 8
   NodeObjectTemplate: {fileID: 978856112}
   PathObjectTemplate: {fileID: 171922970}
   StartMaterial: {fileID: 2100000, guid: 8388f3281c786cb4a959bc06afc69a8c, type: 2}

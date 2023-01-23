@@ -29,7 +29,9 @@ public class PathRenderer : MonoBehaviour
 
 	private List<int> _triangles = new List<int>();
 
+	private float _ceilingHeight = 3f;
 
+	public bool BothSides = true;
 	public void Generate(MazeGenerator maze)
 	{
 
@@ -80,6 +82,14 @@ public class PathRenderer : MonoBehaviour
 			var basePoint = currentNode.GameObject.transform.position;
 			var adjacentWickets = new List<Wicket>();
 
+			var floorVertex = _vertices.Count;
+			_vertices.Add(basePoint);
+			_normals.Add(Vector3.up);
+			var ceilingVertex = _vertices.Count;
+			_vertices.Add(basePoint + Vector3.up * _ceilingHeight);
+			_normals.Add(Vector3.down);
+
+
 			foreach (var neighborAddress in currentNode.Neighbors)
 			{
 
@@ -112,7 +122,7 @@ public class PathRenderer : MonoBehaviour
 				var nextIndex = i + 1 >= orderedWickets.Count ? 0 : i + 1;
 				var nextWicket = orderedWickets[nextIndex];
 
-				AddConnectionTriangles(wicket, nextWicket);
+				AddConnectionTriangles(basePoint, floorVertex, ceilingVertex, wicket, nextWicket);
 			}
 
 		}
@@ -131,19 +141,51 @@ public class PathRenderer : MonoBehaviour
 
 	}
 
-	private Vector3 FacingDirection(Wicket wicket)
+
+	private struct WicketConnection
 	{
-		var baseLine = _vertices[wicket[0]] - _vertices[wicket[3]];
-		return baseLine.PerpindicularTo(Vector3.zero).normalized;
+		public Wicket Wicket1;
+		public Wicket Wicket2;
+	
+		public WicketConnection(Wicket wicket1, Wicket wicket2)
+		{
+			Wicket1 = wicket1;
+			Wicket2 = wicket2;
+		}
+
+		public override int GetHashCode()
+		{
+			return base.GetHashCode();
+		}
+		public override bool Equals(object obj)
+		{
+			if(obj is WicketConnection other){
+
+				if(Wicket1 == other.Wicket1 && Wicket2 == other.Wicket2)
+				{
+					return true;
+				}
+				if (Wicket1 == other.Wicket2 && Wicket2 == other.Wicket1)
+				{
+					return true;
+				}
+			}
+			return false;
+		}
 	}
 
-	private bool InLine(Wicket wicket1, Wicket wicket2)
+	private void AddFloorAndCeiling(Vector3 basePoint, int floorPoint, int ceilingPoint, Wicket wicket)
 	{
-		return Vector3.Cross(FacingDirection(wicket1), FacingDirection(wicket2)) == Vector3.zero;
+
 	}
 
-	private void AddConnectionTriangles(Wicket wicket1, Wicket wicket2)
+
+	private HashSet<WicketConnection> _existingConnections = new HashSet<WicketConnection>();
+
+
+	private void AddConnectionTriangles(Vector3 basePoint, int floorPoint, int ceilingPoint, Wicket wicket1, Wicket wicket2)
 	{
+
 		var type = -1;
 		var shortestVertexDistance = float.MaxValue;
 		var distance = Vector3.Distance(_vertices[wicket1[0]], _vertices[wicket2[3]]);
@@ -169,62 +211,184 @@ public class PathRenderer : MonoBehaviour
 			type = 3;
 		}
 
+		if(_existingConnections.Contains(new WicketConnection(wicket1, wicket2)))
+		{
+			switch (type)
+			{
+				case 0:
+					type = 2;
+					break;
+				case 1:
+					type = 3;
+					break;
+				case 2:
+					type = 0;
+					break;
+				case 3:
+					type = 1;
+					break;
+			}
+		} else
+		{
 
-		var newTriangles = new List<int>();
+			_existingConnections.Add(new WicketConnection(wicket1, wicket2));
+
+		}
 
 		switch (type)
 		{
 			case 0: // 0:3
-				newTriangles.AddRange(new List<int>()
-				{
+				_triangles.AddRange(OrientedTriangle(basePoint, new int[]
+					{
 					wicket1[0],
 					wicket2[3],
-					wicket1[1],
+					wicket1[1]
+				}));
+				_triangles.AddRange(OrientedTriangle(basePoint, new int[]
+				{
 					wicket2[2],
 					wicket1[1],
 					wicket2[3],
-				});
+				}));
+				_triangles.AddRange(OrientedTriangle(basePoint, new int[]
+				{
+					wicket1[1],
+					wicket2[2],
+					ceilingPoint
+				}));
+				_triangles.AddRange(OrientedTriangle(basePoint, new int[]
+				{
+					wicket1[0],
+					wicket2[3],
+					floorPoint
+				}));
+
 				break;
 			case 1: // 0:0
-				newTriangles.AddRange(new List<int>()
+				_triangles.AddRange(OrientedTriangle(basePoint, new int[]
 				{
 					wicket1[0],
 					wicket2[0],
-					wicket1[1],
+					wicket1[1]
+				}));
+				_triangles.AddRange(OrientedTriangle(basePoint, new int[]
+				{
 					wicket2[1],
 					wicket1[1],
 					wicket2[0],
-				});
+				}));
+				_triangles.AddRange(OrientedTriangle(basePoint, new int[]
+				{
+					wicket1[1],
+					wicket2[1],
+					ceilingPoint
+				}));
+				_triangles.AddRange(OrientedTriangle(basePoint, new int[]
+				{
+					wicket1[0],
+					wicket2[0],
+					floorPoint
+				}));
+
 				break;
 			case 2: // 3:0
-				newTriangles.AddRange(new List<int>()
+				_triangles.AddRange(OrientedTriangle(basePoint, new int[]
 				{
 					wicket1[3],
 					wicket2[0],
-					wicket1[2],
+					wicket1[2]
+				}));
+				_triangles.AddRange(OrientedTriangle(basePoint, new int[]
+				{
 					wicket2[1],
 					wicket1[2],
 					wicket2[0],
-				});
+				}));
+
+				_triangles.AddRange(OrientedTriangle(basePoint, new int[]
+				{
+					wicket1[2],
+					wicket2[1],
+					ceilingPoint
+				}));
+				_triangles.AddRange(OrientedTriangle(basePoint, new int[]
+				{
+					wicket1[3],
+					wicket2[0],
+					floorPoint
+				}));
+
 				break;
 			case 3: // 3:3
-				newTriangles.AddRange(new List<int>()
+				_triangles.AddRange(OrientedTriangle(basePoint, new int[]
 				{
 					wicket1[3],
 					wicket2[3],
+					wicket1[2]
+				}));
+				_triangles.AddRange(OrientedTriangle(basePoint, new int[]
+				{
+					wicket2[2],
+					wicket1[2],
+					wicket2[3],
+				}));
+				_triangles.AddRange(OrientedTriangle(basePoint, new int[]
+				{
 					wicket1[2],
 					wicket2[2],
+					ceilingPoint
+				}));
+				_triangles.AddRange(OrientedTriangle(basePoint, new int[]
+				{
 					wicket1[3],
 					wicket2[3],
-				});
+					floorPoint
+				}));
+
 				break;
 		}
 
-		_triangles.AddRange(newTriangles);
-		
+		_triangles.AddRange(OrientedTriangle(basePoint, new int[]
+		{
+					wicket1[1],
+					wicket1[2],
+					ceilingPoint
+		}));
+		_triangles.AddRange(OrientedTriangle(basePoint, new int[]
+		{
+					wicket1[0],
+					wicket1[3],
+					floorPoint
+		}));
 
 	}
 
+	private List<int> OrientedTriangle(Vector3 basePoint, int[] triangle)
+	{
+		if (BothSides)
+		{
+			return new List<int>()
+			{
+				triangle[0],
+				triangle[2],
+				triangle[1],
+				triangle[0],
+				triangle[1],
+				triangle[2],
+			};
+		}
+		var plane = new Plane(_vertices[triangle[0]], _vertices[triangle[1]], _vertices[triangle[2]]);
+		if (plane.GetSide(basePoint + Vector3.up)){
+			return triangle.ToList();
+		}
+
+		return new List<int>()
+		{
+			triangle[0],
+			triangle[2],
+			triangle[1],
+		};
+	}
 
 	/// <summary>
 	/// Returns the closest wicket to a point
@@ -283,6 +447,18 @@ public class PathRenderer : MonoBehaviour
 			triangles.Add(wicket2[i]);
 			triangles.Add(wicket2[next]);
 			triangles.Add(wicket1[i]);
+
+			if (BothSides)
+			{
+				triangles.Add(wicket2[next]);
+				triangles.Add(wicket1[i]);
+				triangles.Add(wicket1[next]);
+
+
+				triangles.Add(wicket2[i]);
+				triangles.Add(wicket1[i]);
+				triangles.Add(wicket2[next]);
+			}
 		};
 
 		_triangles.AddRange(triangles);
@@ -330,8 +506,8 @@ public class PathRenderer : MonoBehaviour
 		var vertices = new List<Vector3>()
 		{
 			basePoint + perpindicular*2f,
-			basePoint + perpindicular + Vector3.up*3f,
-			basePoint - perpindicular + Vector3.up*3f,
+			basePoint + perpindicular + Vector3.up*_ceilingHeight,
+			basePoint - perpindicular + Vector3.up*_ceilingHeight,
 			basePoint - perpindicular*2f,
 		};
 		return vertices;
