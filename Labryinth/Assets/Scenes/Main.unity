@@ -299,7 +299,6 @@ GameObject:
   - component: {fileID: 703719142}
   - component: {fileID: 703719141}
   - component: {fileID: 703719144}
-  - component: {fileID: 703719145}
   m_Layer: 0
   m_Name: PathRenderer
   m_TagString: Untagged
@@ -334,6 +333,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: e21b3956e64b6a944a9a3d8719e8882f, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  BothSides: 1
 --- !u!23 &703719142
 MeshRenderer:
   m_ObjectHideFlags: 0
@@ -395,25 +395,9 @@ MeshCollider:
   m_IsTrigger: 0
   m_Enabled: 1
   serializedVersion: 4
-  m_Convex: 0
+  m_Convex: 1
   m_CookingOptions: 30
   m_Mesh: {fileID: 0}
---- !u!54 &703719145
-Rigidbody:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 703719139}
-  serializedVersion: 2
-  m_Mass: 1
-  m_Drag: 0
-  m_AngularDrag: 0.05
-  m_UseGravity: 0
-  m_IsKinematic: 1
-  m_Interpolate: 0
-  m_Constraints: 0
-  m_CollisionDetection: 0
 --- !u!1 &705507993
 GameObject:
   m_ObjectHideFlags: 0
@@ -518,8 +502,6 @@ GameObject:
   m_Component:
   - component: {fileID: 768249181}
   - component: {fileID: 768249182}
-  - component: {fileID: 768249183}
-  - component: {fileID: 768249184}
   m_Layer: 0
   m_Name: Character
   m_TagString: Untagged
@@ -559,38 +541,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   _forwardSpeed: 50
   _sideSpeed: 30
-  _cameraSpeed: 500
+  _cameraSpeed: 1000
   _characterCamera: {fileID: 1973510467}
---- !u!136 &768249183
-CapsuleCollider:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 768249180}
-  m_Material: {fileID: 0}
-  m_IsTrigger: 0
-  m_Enabled: 1
-  m_Radius: 0.5
-  m_Height: 1
-  m_Direction: 1
-  m_Center: {x: 0, y: 0, z: 0}
---- !u!54 &768249184
-Rigidbody:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 768249180}
-  serializedVersion: 2
-  m_Mass: 1
-  m_Drag: 0
-  m_AngularDrag: 0.05
-  m_UseGravity: 1
-  m_IsKinematic: 1
-  m_Interpolate: 0
-  m_Constraints: 0
-  m_CollisionDetection: 0
 --- !u!1 &772792414
 GameObject:
   m_ObjectHideFlags: 0
@@ -1217,8 +1169,8 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   PathRenderer: {fileID: 703719141}
-  Size: 3
-  Scale: 8
+  Size: 5
+  Scale: 12
   NodeObjectTemplate: {fileID: 978856112}
   PathObjectTemplate: {fileID: 171922970}
   StartMaterial: {fileID: 2100000, guid: 8388f3281c786cb4a959bc06afc69a8c, type: 2}

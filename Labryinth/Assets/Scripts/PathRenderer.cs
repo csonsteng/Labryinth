@@ -1,3 +1,4 @@
+using Newtonsoft.Json.Schema;
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -56,9 +57,9 @@ public class PathRenderer : MonoBehaviour
 				if (maze.Paths.TryGetValue(pathID, out var path))
 				{
 
-					var wicket1 = MakeWicket(currentNode.GameObject.transform.position, neighborNode.GameObject.transform.position, 0.2f);
+					var wicket1 = MakeWicket(currentNode.GameObject.transform.position, neighborNode.GameObject.transform.position, 0.22f);
 					var wicket2 = MakeWicket(currentNode.GameObject.transform.position, neighborNode.GameObject.transform.position, 0.5f);
-					var wicket3 = MakeWicket(currentNode.GameObject.transform.position, neighborNode.GameObject.transform.position, 0.8f);
+					var wicket3 = MakeWicket(currentNode.GameObject.transform.position, neighborNode.GameObject.transform.position, 0.78f);
 
 					AddTriangles(wicket1, wicket2);
 					AddTriangles(wicket2, wicket3);
@@ -79,15 +80,11 @@ public class PathRenderer : MonoBehaviour
 		// connect the wickets at the nodes
 		foreach ((var currentNodeAddress, var currentNode) in maze.NodeMap)
 		{
+
 			var basePoint = currentNode.GameObject.transform.position;
 			var adjacentWickets = new List<Wicket>();
 
-			var floorVertex = _vertices.Count;
-			_vertices.Add(basePoint);
-			_normals.Add(Vector3.up);
-			var ceilingVertex = _vertices.Count;
-			_vertices.Add(basePoint + Vector3.up * _ceilingHeight);
-			_normals.Add(Vector3.down);
+
 
 
 			foreach (var neighborAddress in currentNode.Neighbors)
@@ -107,13 +104,70 @@ public class PathRenderer : MonoBehaviour
 				continue;
 			}
 
-			var orderedWickets =  adjacentWickets.OrderBy(wicket =>
+			var orderedWickets = adjacentWickets.OrderBy(wicket =>
+		   {
+			   var averagePoint = AverageWicketLocation(wicket);
+			   wicket.Vector = averagePoint - basePoint;
+			   var angle = Vector3.SignedAngle(Vector3.forward, wicket.Vector, Vector3.up);
+			   Debug.Log($"sorted angle {angle}");
+			   return angle;
+		   }).ToList();
+
+
+			var intersectionCenter = Vector3.zero;
+
+			foreach (var wicket in adjacentWickets)
 			{
-				var averagePoint = AverageWicketLocation(wicket);
-				var direction = averagePoint - basePoint;
-				var angle = Vector3.SignedAngle(Vector3.zero, direction, Vector3.up);
-				return angle;
-			}).ToList();
+				intersectionCenter += AverageWicketLocation(wicket);
+			}
+
+			intersectionCenter /= adjacentWickets.Count;
+
+			if (adjacentWickets.Count == 2)
+			{
+
+				var twoWicketAngle = Vector3.Angle(adjacentWickets[0].Vector, adjacentWickets[1].Vector);
+				if (twoWicketAngle <= 150)
+				{
+					var distanceToCenter = basePoint - intersectionCenter;
+					var newWicket = new Wicket(new int[]
+					{
+					_vertices.Count,
+					_vertices.Count+1,
+					_vertices.Count+1,
+					_vertices.Count
+					});
+
+
+					_vertices.Add(basePoint - distanceToCenter);
+					_normals.Add(Vector3.up);
+
+					_vertices.Add(basePoint - distanceToCenter + Vector3.up * _ceilingHeight);
+					_normals.Add(Vector3.down);
+
+
+					var averagePoint = AverageWicketLocation(newWicket);
+					newWicket.Vector = averagePoint - basePoint;
+
+					intersectionCenter *= adjacentWickets.Count;
+					intersectionCenter += AverageWicketLocation(newWicket);
+					adjacentWickets.Add(newWicket);
+					intersectionCenter /= adjacentWickets.Count;
+				}
+
+			}
+
+
+
+
+			var floorVertex = _vertices.Count;
+			_vertices.Add(intersectionCenter);
+			_normals.Add(Vector3.up);
+			var ceilingVertex = _vertices.Count;
+			_vertices.Add(intersectionCenter + Vector3.up * _ceilingHeight);
+			_normals.Add(Vector3.down);
+
+			var straightLineWickets = new List<Tuple<Wicket, Wicket>>();
 
 			for (var i = 0; i < orderedWickets.Count; i++)
 			{
@@ -122,7 +176,21 @@ public class PathRenderer : MonoBehaviour
 				var nextIndex = i + 1 >= orderedWickets.Count ? 0 : i + 1;
 				var nextWicket = orderedWickets[nextIndex];
 
-				AddConnectionTriangles(basePoint, floorVertex, ceilingVertex, wicket, nextWicket);
+				var angle = Vector3.Angle(nextWicket.Vector, wicket.Vector);
+				if (orderedWickets.Count > 2 && angle > 150)
+				{
+					Debug.Log($"the straight line angle is {angle}");
+					straightLineWickets.Add(new Tuple<Wicket, Wicket>(wicket, nextWicket));
+					continue;
+				}
+
+				AddConnectionTriangles(intersectionCenter, floorVertex, ceilingVertex, wicket, nextWicket);
+			}
+
+			foreach(var wicketSet in straightLineWickets)
+			{
+				AddConnectionTriangles(intersectionCenter, floorVertex, ceilingVertex, wicketSet.Item1, wicketSet.Item2, false);
+
 			}
 
 		}
@@ -174,41 +242,55 @@ public class PathRenderer : MonoBehaviour
 		}
 	}
 
-	private void AddFloorAndCeiling(Vector3 basePoint, int floorPoint, int ceilingPoint, Wicket wicket)
-	{
-
-	}
-
 
 	private HashSet<WicketConnection> _existingConnections = new HashSet<WicketConnection>();
 
 
-	private void AddConnectionTriangles(Vector3 basePoint, int floorPoint, int ceilingPoint, Wicket wicket1, Wicket wicket2)
+	private void AddConnectionTriangles(Vector3 basePoint, int floorPoint, int ceilingPoint, Wicket wicket1, Wicket wicket2, bool firstPass = true)
 	{
-
+		
 		var type = -1;
-		var shortestVertexDistance = float.MaxValue;
-		var distance = Vector3.Distance(_vertices[wicket1[0]], _vertices[wicket2[3]]);
-		if (distance < shortestVertexDistance){
-			shortestVertexDistance = distance;
-			type = 0;
-		}
-		distance = Vector3.Distance(_vertices[wicket1[0]], _vertices[wicket2[0]]);
-		if (distance < shortestVertexDistance)
+		if (firstPass)
 		{
-			shortestVertexDistance = distance;
-			type = 1;
-		}
-		distance = Vector3.Distance(_vertices[wicket1[3]], _vertices[wicket2[0]]);
-		if (distance < shortestVertexDistance)
+
+			var shortestVertexDistance = float.MaxValue;
+			var distance = Vector3.Distance(_vertices[wicket1[0]], _vertices[wicket2[3]]);
+			if (distance < shortestVertexDistance)
+			{
+				shortestVertexDistance = distance;
+				type = 0;
+			}
+			distance = Vector3.Distance(_vertices[wicket1[0]], _vertices[wicket2[0]]);
+			if (distance < shortestVertexDistance)
+			{
+				shortestVertexDistance = distance;
+				type = 1;
+			}
+			distance = Vector3.Distance(_vertices[wicket1[3]], _vertices[wicket2[0]]);
+			if (distance < shortestVertexDistance)
+			{
+				shortestVertexDistance = distance;
+				type = 2;
+			}
+			distance = Vector3.Distance(_vertices[wicket1[3]], _vertices[wicket2[3]]);
+			if (distance < shortestVertexDistance)
+			{
+				type = 3;
+			}
+		} else
 		{
-			shortestVertexDistance = distance;
-			type = 2;
-		}
-		distance = Vector3.Distance(_vertices[wicket1[3]], _vertices[wicket2[3]]);
-		if (distance < shortestVertexDistance)
-		{
-			type = 3;
+			if(wicket1.ConnectedCorner == -1 || wicket2.ConnectedCorner == -1)
+			{
+				Debug.LogError("NOOOO");
+			}
+			if(wicket1.ConnectedCorner == 0)
+			{
+				type = wicket2.ConnectedCorner == 0 ? 3 : 2;
+			} else
+			{
+				type = wicket2.ConnectedCorner == 0 ? 0 : 1;
+			}
+
 		}
 
 		if(_existingConnections.Contains(new WicketConnection(wicket1, wicket2)))
@@ -234,10 +316,12 @@ public class PathRenderer : MonoBehaviour
 			_existingConnections.Add(new WicketConnection(wicket1, wicket2));
 
 		}
-
+		Debug.Log($"type {type}");
 		switch (type)
 		{
 			case 0: // 0:3
+				wicket1.ConnectedCorner = 0;
+				wicket2.ConnectedCorner = 3;
 				_triangles.AddRange(OrientedTriangle(basePoint, new int[]
 					{
 					wicket1[0],
@@ -265,6 +349,9 @@ public class PathRenderer : MonoBehaviour
 
 				break;
 			case 1: // 0:0
+
+				wicket1.ConnectedCorner = 0;
+				wicket2.ConnectedCorner = 0;
 				_triangles.AddRange(OrientedTriangle(basePoint, new int[]
 				{
 					wicket1[0],
@@ -277,6 +364,7 @@ public class PathRenderer : MonoBehaviour
 					wicket1[1],
 					wicket2[0],
 				}));
+
 				_triangles.AddRange(OrientedTriangle(basePoint, new int[]
 				{
 					wicket1[1],
@@ -292,6 +380,9 @@ public class PathRenderer : MonoBehaviour
 
 				break;
 			case 2: // 3:0
+
+				wicket1.ConnectedCorner = 3;
+				wicket2.ConnectedCorner = 0;
 				_triangles.AddRange(OrientedTriangle(basePoint, new int[]
 				{
 					wicket1[3],
@@ -320,6 +411,9 @@ public class PathRenderer : MonoBehaviour
 
 				break;
 			case 3: // 3:3
+
+				wicket1.ConnectedCorner = 3;
+				wicket2.ConnectedCorner = 3;
 				_triangles.AddRange(OrientedTriangle(basePoint, new int[]
 				{
 					wicket1[3],
@@ -332,6 +426,7 @@ public class PathRenderer : MonoBehaviour
 					wicket1[2],
 					wicket2[3],
 				}));
+
 				_triangles.AddRange(OrientedTriangle(basePoint, new int[]
 				{
 					wicket1[2],
@@ -520,6 +615,8 @@ public class Wicket
 	protected int[] Points;
 
 	public int Index;
+	public int ConnectedCorner = -1;
+	public Vector3 Vector;
 
 	public Wicket(int[] points)
 	{

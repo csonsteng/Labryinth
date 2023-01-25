@@ -22,17 +22,26 @@ public class FirstPersonController : MonoBehaviour
 
     [SerializeField] private Camera _characterCamera;
 
+    private bool _skipFrame = true;
+
     public void Initialize(Vector3 location)
 	{
         transform.localPosition = new Vector3(location.x, 0.5f, location.z);
         
         Cursor.lockState = CursorLockMode.Locked;
         _initialized = true;
+        _skipFrame = true;
 	}
     // Update is called once per frame
     void Update()
     {
 		if (!_initialized){
+            return;
+		}
+
+		if (_skipFrame)
+		{
+            _skipFrame = false;
             return;
 		}
 
@@ -42,13 +51,13 @@ public class FirstPersonController : MonoBehaviour
         var localMoveVector = new Vector3(strafeMovement * _forwardSpeed, 0f, forwardMovement * _sideSpeed) * Time.deltaTime;
         var convertedMoveVector = Quaternion.Euler(transform.localEulerAngles) * localMoveVector;
 
-        transform.localPosition += convertedMoveVector;
+        
+       transform.localPosition += convertedMoveVector;
 
         var mouseInputX = Input.GetAxis("Mouse X");
         var mouseInputY = Input.GetAxis("Mouse Y");
 
-        //_characterCamera.transform.Rotate(Quaternion.Euler(transform.localEulerAngles) * Vector3.left, mouseInputY * _cameraSpeed * Time.deltaTime);
-        //_characterCamera.transform.localEulerAngles = new Vector3(_characterCamera.transform.localEulerAngles.x, _characterCamera.transform.localEulerAngles.y, 0f);
+        _characterCamera.transform.Rotate(Vector3.left, mouseInputY * _cameraSpeed * Time.deltaTime);
         transform.Rotate(Vector3.up, mouseInputX * _cameraSpeed * Time.deltaTime);
     }
 }

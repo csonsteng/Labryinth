@@ -12,12 +12,10 @@ public class Node
 
 	public GameObject GameObject;
 
-	public bool Connected;
 
 	public Node(int radius, float theta)
 	{
 		Address = new NodeAddress(radius, theta);
-		Connected = false;
 	}
 
 	public Vector3 Position(float scale)

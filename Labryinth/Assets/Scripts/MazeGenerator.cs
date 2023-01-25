@@ -38,6 +38,8 @@ public class MazeGenerator : MonoBehaviour
 	{
 		Clear();
 		Generate();
+		//GenerateAngledConnection();
+		//GenerateTriConnection();
 		Draw();
 		StartGame();
 		PathRenderer.Generate(this);
@@ -57,12 +59,12 @@ public class MazeGenerator : MonoBehaviour
 			Destroy(spawnedPath.GameObject);
 		}
 		Paths.Clear();
-
 	}
-	private void Generate()
+
+
+	private void FillNodeMap(int size)
 	{
-		
-		for (var r = 1; r <= Size; r++)
+		for (var r = 1; r <= size; r++)
 		{
 			var layerDivisions = Mathf.Pow(2, (2 + Mathf.FloorToInt(r / 2f)));
 			var step = 360f / layerDivisions;
@@ -93,6 +95,55 @@ public class MazeGenerator : MonoBehaviour
 			}
 		}
 
+	}
+
+	private bool TryAddPath(NodeAddress address1, NodeAddress address2)
+	{
+		var pathID = new PathID(address1, address2);
+		if (Paths.ContainsKey(pathID))
+		{
+			return false;
+		}
+		var path = new Path(pathID);
+		CreatePathObject(path);
+		Paths.Add(pathID, path);
+
+		return true;
+	}
+
+	private void GenerateAngledConnection()
+	{
+		FillNodeMap(1);
+		_startNodeAddress = new NodeAddress(1, 0);
+		var branchAddress = new NodeAddress(1, 90);
+		_endNodeAddress = new NodeAddress(1, 180);
+
+		TryAddPath(_startNodeAddress, branchAddress);
+		TryAddPath(branchAddress, _endNodeAddress);
+	}
+
+	private void GenerateTriConnection()
+	{
+		FillNodeMap(2);
+		_startNodeAddress = new NodeAddress(2, 45);
+		var branchAddress = new NodeAddress(1, 90);
+		var branchAddress3 = new NodeAddress(1, 0);
+		var branchAddress4 = new NodeAddress(1, 180);
+		var branchAddress2 = new NodeAddress(2, 90);
+		_endNodeAddress = new NodeAddress(2, 135);
+
+		TryAddPath(_startNodeAddress, branchAddress2);
+		TryAddPath(branchAddress, branchAddress2);
+		//TryAddPath(branchAddress, branchAddress3);
+		//TryAddPath(branchAddress, branchAddress4);
+		TryAddPath(branchAddress2, _endNodeAddress);
+	}
+
+	private void Generate()
+	{
+
+		FillNodeMap(Size);
+
 		_startNodeAddress = RandomNodeAddress();
 		_endNodeAddress = RandomNodeAddress();
 		while (_endNodeAddress.Equals(_startNodeAddress))
@@ -110,7 +161,6 @@ public class MazeGenerator : MonoBehaviour
 		var maxAttempts = 1000;
 
 		// connect the start to the end
-		currentStep.Connected = true;
 		while (!currentStep.Address.Equals(_endNodeAddress) && attempts < maxAttempts)
 		{
 			attempts++;
@@ -132,14 +182,9 @@ public class MazeGenerator : MonoBehaviour
 				continue;
 			}
 
-			randomNode.Connected = true;
 
-			var pathID = new PathID(currentStep.Address, randomNeighbor);
-			var path = new Path(pathID);
-			CreatePathObject(path);
-			Paths.Add(pathID, path);
+			TryAddPath(currentStep.Address, randomNeighbor);
 
-			Logger.Log($"Attempt {attempts} --Added  {pathID}");
 			currentStep = randomNode;
 			visitedList.Add(currentStep.Address);
 		}
@@ -156,17 +201,7 @@ public class MazeGenerator : MonoBehaviour
 			var randomNode = NodeMap[visitedList[randomNodeAddress]];
 			if (randomNode.TryGetRandomNeighbor(visitedList, out var node))
 			{
-				var pathID = new PathID(randomNode.Address, node);
-				if (Paths.ContainsKey(pathID))
-				{
-					Debug.Log("can i remove this guard clause? exclusion list should be sufficient");
-					continue;
-				}
-				NodeMap[node].Connected = true;
-
-				var path = new Path(pathID);
-				CreatePathObject(path);
-				Paths.Add(pathID, path);
+				TryAddPath(randomNode.Address, node);
 				visitedList.Add(node);
 			}
 		}
@@ -181,16 +216,11 @@ public class MazeGenerator : MonoBehaviour
 			foreach (var neighbor in randomNode.Neighbors)
 			{
 				var pathID = new PathID(randomNode.Address, neighbor);
-				if (Paths.ContainsKey(pathID))
+				if (!TryAddPath(randomNode.Address, neighbor))
 				{
 					continue;
 				}
 
-				NodeMap[neighbor].Connected = true;
-
-				var path = new Path(pathID);
-				CreatePathObject(path);
-				Paths.Add(pathID, path);
 				visitedList.Add(neighbor);
 			}
 		}
