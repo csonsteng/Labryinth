@@ -40,79 +40,39 @@ public class PathRenderer : MonoBehaviour
 		_normals = new List<Vector3>();
 		_triangles = new List<int>();
 
-		// add wickets in each path
-		var checkedPaths = new HashSet<PathID>();
-
-		foreach ((var currentNodeAddress, var currentNode) in maze.NodeMap) {
+		foreach ((var currentNodeAddress, var currentNode) in maze.NodeMap)
+		{
+			var adjacentWickets = new List<Wicket>();
 
 			foreach (var neighborAddress in currentNode.Neighbors)
 			{
 				var neighborNode = maze.NodeMap[neighborAddress];
 				var pathID = new PathID(currentNodeAddress, neighborAddress);
 
-				if (checkedPaths.Contains(pathID)) {
-					continue;
-				}
+
 
 				if (maze.Paths.TryGetValue(pathID, out var path))
 				{
-
-					var wicket1 = MakeWicket(currentNode.GameObject.transform.position, neighborNode.GameObject.transform.position, 0.22f);
-					var wicket2 = MakeWicket(currentNode.GameObject.transform.position, neighborNode.GameObject.transform.position, 0.5f);
-					var wicket3 = MakeWicket(currentNode.GameObject.transform.position, neighborNode.GameObject.transform.position, 0.78f);
-
-					AddTriangles(wicket1, wicket2);
-					AddTriangles(wicket2, wicket3);
-
-					path.Wickets = new Wicket[]
-					{
-						wicket1,
-						wicket2,
-						wicket3
-					};
-
-					checkedPaths.Add(pathID);
+					// Make the closest wicket at each intersection
+					var wicket = MakeWicket(currentNode.GameObject.transform.position, neighborNode.GameObject.transform.position, 0.22f);
+					currentNode.Wickets[neighborAddress] = wicket;
+					adjacentWickets.Add(wicket);
 				}
 
 			}
-		}
 
-		// connect the wickets at the nodes
-		foreach ((var currentNodeAddress, var currentNode) in maze.NodeMap)
-		{
-
-			var basePoint = currentNode.GameObject.transform.position;
-			var adjacentWickets = new List<Wicket>();
-
-
-
-
-			foreach (var neighborAddress in currentNode.Neighbors)
+			if(adjacentWickets.Count == 0)
 			{
-
-				var pathID = new PathID(currentNodeAddress, neighborAddress);
-				if (maze.Paths.TryGetValue(pathID, out var path))
-				{
-					adjacentWickets.Add(ClosestWicket(basePoint, path.Wickets));
-
-				}
-			}
-
-			if (adjacentWickets.Count <= 1)
-			{
-				// TODO: this is a dead end
 				continue;
 			}
 
-			var orderedWickets = adjacentWickets.OrderBy(wicket =>
-		   {
-			   var averagePoint = AverageWicketLocation(wicket);
-			   wicket.Vector = averagePoint - basePoint;
-			   var angle = Vector3.SignedAngle(Vector3.forward, wicket.Vector, Vector3.up);
-			   Debug.Log($"sorted angle {angle}");
-			   return angle;
-		   }).ToList();
 
+			var basePoint = currentNode.GameObject.transform.position;
+
+			if (adjacentWickets.Count == 1)
+			{
+				SealWicket(basePoint, adjacentWickets[0]);
+			}
 
 			var intersectionCenter = Vector3.zero;
 
@@ -122,27 +82,34 @@ public class PathRenderer : MonoBehaviour
 			}
 
 			intersectionCenter /= adjacentWickets.Count;
+			
 
 			if (adjacentWickets.Count == 2)
 			{
+				foreach(var wicket in adjacentWickets)
+				{
+					wicket.Vector = AverageWicketLocation(wicket) - basePoint;
+				}
 
 				var twoWicketAngle = Vector3.Angle(adjacentWickets[0].Vector, adjacentWickets[1].Vector);
+
+				// add a dummy wicket to help with spacing on sharp turn intersections
 				if (twoWicketAngle <= 150)
 				{
 					var distanceToCenter = basePoint - intersectionCenter;
 					var newWicket = new Wicket(new int[]
 					{
-					_vertices.Count,
-					_vertices.Count+1,
-					_vertices.Count+1,
-					_vertices.Count
+						_vertices.Count,
+						_vertices.Count+1,
+						_vertices.Count+1,
+						_vertices.Count
 					});
 
 
-					_vertices.Add(basePoint - distanceToCenter);
+					_vertices.Add(basePoint + distanceToCenter);
 					_normals.Add(Vector3.up);
 
-					_vertices.Add(basePoint - distanceToCenter + Vector3.up * _ceilingHeight);
+					_vertices.Add(basePoint + distanceToCenter + Vector3.up * _ceilingHeight);
 					_normals.Add(Vector3.down);
 
 
@@ -151,15 +118,12 @@ public class PathRenderer : MonoBehaviour
 
 					intersectionCenter *= adjacentWickets.Count;
 					intersectionCenter += AverageWicketLocation(newWicket);
+
 					adjacentWickets.Add(newWicket);
 					intersectionCenter /= adjacentWickets.Count;
 				}
 
 			}
-
-
-
-
 			var floorVertex = _vertices.Count;
 			_vertices.Add(intersectionCenter);
 			_normals.Add(Vector3.up);
@@ -167,7 +131,13 @@ public class PathRenderer : MonoBehaviour
 			_vertices.Add(intersectionCenter + Vector3.up * _ceilingHeight);
 			_normals.Add(Vector3.down);
 
-			var straightLineWickets = new List<Tuple<Wicket, Wicket>>();
+			var orderedWickets = adjacentWickets.OrderBy(wicket =>
+			{
+				var averagePoint = AverageWicketLocation(wicket);
+				wicket.Vector = averagePoint - basePoint;
+				var angle = Vector3.SignedAngle(Vector3.forward, wicket.Vector, Vector3.up);
+				return angle;
+			}).ToList();
 
 			for (var i = 0; i < orderedWickets.Count; i++)
 			{
@@ -176,25 +146,40 @@ public class PathRenderer : MonoBehaviour
 				var nextIndex = i + 1 >= orderedWickets.Count ? 0 : i + 1;
 				var nextWicket = orderedWickets[nextIndex];
 
-				var angle = Vector3.Angle(nextWicket.Vector, wicket.Vector);
-				if (orderedWickets.Count > 2 && angle > 150)
-				{
-					Debug.Log($"the straight line angle is {angle}");
-					straightLineWickets.Add(new Tuple<Wicket, Wicket>(wicket, nextWicket));
-					continue;
-				}
 
 				AddConnectionTriangles(intersectionCenter, floorVertex, ceilingVertex, wicket, nextWicket);
 			}
+		}
 
-			foreach(var wicketSet in straightLineWickets)
+		// add wickets in each path
+		var checkedPaths = new HashSet<PathID>();
+
+		foreach ((var currentNodeAddress, var currentNode) in maze.NodeMap)
+		{
+			var adjacentWickets = new List<Wicket>();
+
+			foreach (var neighborAddress in currentNode.Neighbors)
 			{
-				AddConnectionTriangles(intersectionCenter, floorVertex, ceilingVertex, wicketSet.Item1, wicketSet.Item2, false);
+				var neighborNode = maze.NodeMap[neighborAddress];
+				var pathID = new PathID(currentNodeAddress, neighborAddress);
 
+				if (checkedPaths.Contains(pathID))
+				{
+					continue;
+				}
+				if (maze.Paths.TryGetValue(pathID, out var path))
+				{
+					var wicket1 = currentNode.Wickets[neighborAddress];
+					var wicket2 = MakeWicket(currentNode.GameObject.transform.position, neighborNode.GameObject.transform.position, 0.5f);
+					var wicket3 = neighborNode.Wickets[currentNodeAddress];
+
+					AddTriangles(wicket1, wicket2);
+					AddTriangles(wicket2, wicket3, true);
+				}
+				checkedPaths.Add(pathID);
 			}
 
 		}
-
 
 		var mesh = new Mesh
 		{
@@ -242,218 +227,60 @@ public class PathRenderer : MonoBehaviour
 		}
 	}
 
-
-	private HashSet<WicketConnection> _existingConnections = new HashSet<WicketConnection>();
-
-
-	private void AddConnectionTriangles(Vector3 basePoint, int floorPoint, int ceilingPoint, Wicket wicket1, Wicket wicket2, bool firstPass = true)
+	private void SealWicket(Vector3 basePoint, Wicket wicket)
 	{
-		
-		var type = -1;
-		if (firstPass)
-		{
-
-			var shortestVertexDistance = float.MaxValue;
-			var distance = Vector3.Distance(_vertices[wicket1[0]], _vertices[wicket2[3]]);
-			if (distance < shortestVertexDistance)
-			{
-				shortestVertexDistance = distance;
-				type = 0;
-			}
-			distance = Vector3.Distance(_vertices[wicket1[0]], _vertices[wicket2[0]]);
-			if (distance < shortestVertexDistance)
-			{
-				shortestVertexDistance = distance;
-				type = 1;
-			}
-			distance = Vector3.Distance(_vertices[wicket1[3]], _vertices[wicket2[0]]);
-			if (distance < shortestVertexDistance)
-			{
-				shortestVertexDistance = distance;
-				type = 2;
-			}
-			distance = Vector3.Distance(_vertices[wicket1[3]], _vertices[wicket2[3]]);
-			if (distance < shortestVertexDistance)
-			{
-				type = 3;
-			}
-		} else
-		{
-			if(wicket1.ConnectedCorner == -1 || wicket2.ConnectedCorner == -1)
-			{
-				Debug.LogError("NOOOO");
-			}
-			if(wicket1.ConnectedCorner == 0)
-			{
-				type = wicket2.ConnectedCorner == 0 ? 3 : 2;
-			} else
-			{
-				type = wicket2.ConnectedCorner == 0 ? 0 : 1;
-			}
-
-		}
-
-		if(_existingConnections.Contains(new WicketConnection(wicket1, wicket2)))
-		{
-			switch (type)
-			{
-				case 0:
-					type = 2;
-					break;
-				case 1:
-					type = 3;
-					break;
-				case 2:
-					type = 0;
-					break;
-				case 3:
-					type = 1;
-					break;
-			}
-		} else
-		{
-
-			_existingConnections.Add(new WicketConnection(wicket1, wicket2));
-
-		}
-		Debug.Log($"type {type}");
-		switch (type)
-		{
-			case 0: // 0:3
-				wicket1.ConnectedCorner = 0;
-				wicket2.ConnectedCorner = 3;
-				_triangles.AddRange(OrientedTriangle(basePoint, new int[]
-					{
-					wicket1[0],
-					wicket2[3],
-					wicket1[1]
-				}));
-				_triangles.AddRange(OrientedTriangle(basePoint, new int[]
-				{
-					wicket2[2],
-					wicket1[1],
-					wicket2[3],
-				}));
-				_triangles.AddRange(OrientedTriangle(basePoint, new int[]
-				{
-					wicket1[1],
-					wicket2[2],
-					ceilingPoint
-				}));
-				_triangles.AddRange(OrientedTriangle(basePoint, new int[]
-				{
-					wicket1[0],
-					wicket2[3],
-					floorPoint
-				}));
-
-				break;
-			case 1: // 0:0
-
-				wicket1.ConnectedCorner = 0;
-				wicket2.ConnectedCorner = 0;
-				_triangles.AddRange(OrientedTriangle(basePoint, new int[]
-				{
-					wicket1[0],
-					wicket2[0],
-					wicket1[1]
-				}));
-				_triangles.AddRange(OrientedTriangle(basePoint, new int[]
-				{
-					wicket2[1],
-					wicket1[1],
-					wicket2[0],
-				}));
-
-				_triangles.AddRange(OrientedTriangle(basePoint, new int[]
-				{
-					wicket1[1],
-					wicket2[1],
-					ceilingPoint
-				}));
-				_triangles.AddRange(OrientedTriangle(basePoint, new int[]
-				{
-					wicket1[0],
-					wicket2[0],
-					floorPoint
-				}));
-
-				break;
-			case 2: // 3:0
-
-				wicket1.ConnectedCorner = 3;
-				wicket2.ConnectedCorner = 0;
-				_triangles.AddRange(OrientedTriangle(basePoint, new int[]
-				{
-					wicket1[3],
-					wicket2[0],
-					wicket1[2]
-				}));
-				_triangles.AddRange(OrientedTriangle(basePoint, new int[]
-				{
-					wicket2[1],
-					wicket1[2],
-					wicket2[0],
-				}));
-
-				_triangles.AddRange(OrientedTriangle(basePoint, new int[]
-				{
-					wicket1[2],
-					wicket2[1],
-					ceilingPoint
-				}));
-				_triangles.AddRange(OrientedTriangle(basePoint, new int[]
-				{
-					wicket1[3],
-					wicket2[0],
-					floorPoint
-				}));
-
-				break;
-			case 3: // 3:3
-
-				wicket1.ConnectedCorner = 3;
-				wicket2.ConnectedCorner = 3;
-				_triangles.AddRange(OrientedTriangle(basePoint, new int[]
-				{
-					wicket1[3],
-					wicket2[3],
-					wicket1[2]
-				}));
-				_triangles.AddRange(OrientedTriangle(basePoint, new int[]
-				{
-					wicket2[2],
-					wicket1[2],
-					wicket2[3],
-				}));
-
-				_triangles.AddRange(OrientedTriangle(basePoint, new int[]
-				{
-					wicket1[2],
-					wicket2[2],
-					ceilingPoint
-				}));
-				_triangles.AddRange(OrientedTriangle(basePoint, new int[]
-				{
-					wicket1[3],
-					wicket2[3],
-					floorPoint
-				}));
-
-				break;
-		}
-
 		_triangles.AddRange(OrientedTriangle(basePoint, new int[]
 		{
-					wicket1[1],
-					wicket1[2],
-					ceilingPoint
+			wicket[0],
+			wicket[1],
+			wicket[2]
+		}));
+		_triangles.AddRange(OrientedTriangle(basePoint, new int[]
+{
+			wicket[1],
+			wicket[2],
+			wicket[3]
+}));
+
+	}
+
+	private void AddConnectionTriangles(Vector3 basePoint, int floorPoint, int ceilingPoint, Wicket wicket1, Wicket wicket2)
+	{
+		_triangles.AddRange(OrientedTriangle(basePoint, new int[]
+		{
+			wicket1[0],
+			wicket2[3],
+			wicket1[1]
 		}));
 		_triangles.AddRange(OrientedTriangle(basePoint, new int[]
 		{
-					wicket1[0],
-					wicket1[3],
-					floorPoint
+			wicket2[2],
+			wicket1[1],
+			wicket2[3],
+		}));
+		_triangles.AddRange(OrientedTriangle(basePoint, new int[]
+		{
+			wicket1[1],
+			wicket2[2],
+			ceilingPoint
+		}));
+		_triangles.AddRange(OrientedTriangle(basePoint, new int[]
+		{
+			wicket1[0],
+			wicket2[3],
+			floorPoint
+		}));
+		_triangles.AddRange(OrientedTriangle(basePoint, new int[]
+		{
+			wicket1[1],
+			wicket1[2],
+			ceilingPoint
+		}));
+		_triangles.AddRange(OrientedTriangle(basePoint, new int[]
+		{
+			wicket1[0],
+			wicket1[3],
+			floorPoint
 		}));
 
 	}
@@ -486,33 +313,6 @@ public class PathRenderer : MonoBehaviour
 	}
 
 	/// <summary>
-	/// Returns the closest wicket to a point
-	/// </summary>
-	private Wicket ClosestWicket(Vector3 position, Wicket[] wickets)
-	{
-		if(wickets.Length == 1)
-		{
-			return wickets[0];
-		}
-		var closest = wickets[0];
-		var distanceToClosest = Vector3.Distance(position, AverageWicketLocation(closest));
-
-		foreach(var wicket in wickets)
-		{
-			var distance = Vector3.Distance(position, AverageWicketLocation(wicket));
-			if(distance < distanceToClosest)
-			{
-				distanceToClosest = distance;
-				closest = wicket;
-			}
-		}
-
-		return closest;
-
-
-	}
-
-	/// <summary>
 	/// Returns the center of the wicket on the floor (y = 0)
 	/// </summary>
 	private Vector3 AverageWicketLocation(Wicket wicket)
@@ -522,7 +322,8 @@ public class PathRenderer : MonoBehaviour
 		return sum / 2f;
 	}
 
-	private void AddTriangles(Wicket wicket1, Wicket wicket2)
+
+	private void AddTriangles(Wicket wicket1, Wicket wicket2, bool flipped = false)
 	{
 		var triangles = new List<int>();
 
@@ -534,26 +335,31 @@ public class PathRenderer : MonoBehaviour
 				next = 0;
 			}
 
-			triangles.Add(wicket2[next]);
+			var i2 = flipped? 3 - i: i;
+			var next2 = flipped ? 3 - next : next;
+
+
+			triangles.Add(wicket2[next2]);
 			triangles.Add(wicket1[next]);
 			triangles.Add(wicket1[i]);
 
 
-			triangles.Add(wicket2[i]);
-			triangles.Add(wicket2[next]);
+			triangles.Add(wicket2[i2]);
+			triangles.Add(wicket2[next2]);
 			triangles.Add(wicket1[i]);
 
 			if (BothSides)
 			{
-				triangles.Add(wicket2[next]);
+				triangles.Add(wicket2[next2]);
 				triangles.Add(wicket1[i]);
 				triangles.Add(wicket1[next]);
 
 
-				triangles.Add(wicket2[i]);
+				triangles.Add(wicket2[i2]);
 				triangles.Add(wicket1[i]);
-				triangles.Add(wicket2[next]);
+				triangles.Add(wicket2[next2]);
 			}
+			
 		};
 
 		_triangles.AddRange(triangles);
@@ -571,7 +377,7 @@ public class PathRenderer : MonoBehaviour
 			indices.Add(_vertices.Count);
 			_vertices.Add(vertex);
 
-			_normals.Add(new Vector3(vertex.x - basePoint.x, vertex.y, vertex.z - basePoint.z));
+			_normals.Add(new Vector3(vertex.x - basePoint.x, vertex.y - basePoint.y, vertex.z - basePoint.z));
 
 		}
 		var index = 0;

@@ -12,6 +12,8 @@ public class Node
 
 	public GameObject GameObject;
 
+	public Dictionary<NodeAddress, Wicket> Wickets = new Dictionary<NodeAddress, Wicket>();
+
 
 	public Node(int radius, float theta)
 	{
