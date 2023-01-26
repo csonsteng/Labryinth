@@ -30,9 +30,12 @@ public class PathRenderer : MonoBehaviour
 
 	private List<int> _triangles = new List<int>();
 
-	private float _ceilingHeight = 3f;
+	public float CeilingHeight = 5f;
+	public float WicketWidth = 4f;
 
 	public bool BothSides = true;
+
+	public GameObject ColliderTemplate;
 	public void Generate(MazeGenerator maze)
 	{
 
@@ -109,7 +112,7 @@ public class PathRenderer : MonoBehaviour
 					_vertices.Add(basePoint + distanceToCenter);
 					_normals.Add(Vector3.up);
 
-					_vertices.Add(basePoint + distanceToCenter + Vector3.up * _ceilingHeight);
+					_vertices.Add(basePoint + distanceToCenter + Vector3.up * CeilingHeight);
 					_normals.Add(Vector3.down);
 
 
@@ -128,7 +131,7 @@ public class PathRenderer : MonoBehaviour
 			_vertices.Add(intersectionCenter);
 			_normals.Add(Vector3.up);
 			var ceilingVertex = _vertices.Count;
-			_vertices.Add(intersectionCenter + Vector3.up * _ceilingHeight);
+			_vertices.Add(intersectionCenter + Vector3.up * CeilingHeight);
 			_normals.Add(Vector3.down);
 
 			var orderedWickets = adjacentWickets.OrderBy(wicket =>
@@ -190,7 +193,6 @@ public class PathRenderer : MonoBehaviour
 		};
 
 		GetComponent<MeshFilter>().mesh = mesh;
-		GetComponent<MeshCollider>().sharedMesh = mesh;
 
 	}
 
@@ -227,6 +229,35 @@ public class PathRenderer : MonoBehaviour
 		}
 	}
 
+	private void AddCollider(int vertex1, int vertex2)
+	{
+		var point1 = _vertices[vertex1];
+		var point2 = _vertices[vertex2];
+		var averagePoint = (point1 + point2) / 2f;
+
+		var normalized = (point2 - point1).normalized;
+		float angle;
+		if (Mathf.Approximately(normalized.z, 0f))
+		{
+			angle = 90f;
+		} else
+		{
+			angle = Mathf.Rad2Deg * Mathf.Atan2(normalized.x , normalized.z);
+		}
+		var distance = (point2 - point1).magnitude;
+		var colliderObject = Instantiate(ColliderTemplate, ColliderTemplate.transform.parent);
+		colliderObject.transform.localPosition = averagePoint;
+		colliderObject.transform.localScale = new Vector3(1f, 1f, distance);
+
+		colliderObject.transform.localEulerAngles = new Vector3(0f, angle, 0f);
+		colliderObject.SetActive(true);
+
+
+		
+		
+		
+	}
+
 	private void SealWicket(Vector3 basePoint, Wicket wicket)
 	{
 		_triangles.AddRange(OrientedTriangle(basePoint, new int[]
@@ -236,16 +267,20 @@ public class PathRenderer : MonoBehaviour
 			wicket[2]
 		}));
 		_triangles.AddRange(OrientedTriangle(basePoint, new int[]
-{
+		{
 			wicket[1],
 			wicket[2],
 			wicket[3]
-}));
+		}));
+
+		AddCollider(wicket[0], wicket[3]);
 
 	}
 
 	private void AddConnectionTriangles(Vector3 basePoint, int floorPoint, int ceilingPoint, Wicket wicket1, Wicket wicket2)
 	{
+
+		AddCollider(wicket1[0], wicket2[3]);
 		_triangles.AddRange(OrientedTriangle(basePoint, new int[]
 		{
 			wicket1[0],
@@ -364,6 +399,16 @@ public class PathRenderer : MonoBehaviour
 
 		_triangles.AddRange(triangles);
 
+		if (flipped)
+		{
+			AddCollider(wicket1[0], wicket2[3]);
+			AddCollider(wicket1[3], wicket2[0]);
+		} else
+		{
+			AddCollider(wicket1[0], wicket2[0]);
+			AddCollider(wicket1[3], wicket2[3]);
+		}
+
 	}
 
 	private Wicket MakeWicket(Vector3 start, Vector3 end, float distance)
@@ -406,10 +451,10 @@ public class PathRenderer : MonoBehaviour
 		var perpindicular = basePoint.PerpindicularTo(normal);
 		var vertices = new List<Vector3>()
 		{
-			basePoint + perpindicular*2f,
-			basePoint + perpindicular + Vector3.up*_ceilingHeight,
-			basePoint - perpindicular + Vector3.up*_ceilingHeight,
-			basePoint - perpindicular*2f,
+			basePoint + perpindicular*WicketWidth,
+			basePoint + perpindicular + Vector3.up*CeilingHeight,
+			basePoint - perpindicular + Vector3.up*CeilingHeight,
+			basePoint - perpindicular*WicketWidth,
 		};
 		return vertices;
 	}

@@ -21,6 +21,7 @@ public class FirstPersonController : MonoBehaviour
     [SerializeField] private float _cameraSpeed = 500f;
 
     [SerializeField] private Camera _characterCamera;
+    [SerializeField] private CharacterController _controller;
 
     private bool _skipFrame = true;
 
@@ -51,8 +52,9 @@ public class FirstPersonController : MonoBehaviour
         var localMoveVector = new Vector3(strafeMovement * _forwardSpeed, 0f, forwardMovement * _sideSpeed) * Time.deltaTime;
         var convertedMoveVector = Quaternion.Euler(transform.localEulerAngles) * localMoveVector;
 
-        
-       transform.localPosition += convertedMoveVector;
+        _controller.Move(convertedMoveVector);
+
+        //transform.localPosition += convertedMoveVector;
 
         var mouseInputX = Input.GetAxis("Mouse X");
         var mouseInputY = Input.GetAxis("Mouse Y");

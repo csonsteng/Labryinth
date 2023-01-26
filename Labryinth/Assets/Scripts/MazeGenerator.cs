@@ -256,7 +256,7 @@ public class MazeGenerator : MonoBehaviour
 
 	private void StartGame()
 	{
-		FirstPersonController.Instance.Initialize(NodeMap[_startNodeAddress].Position(Scale));
+		FirstPersonController.Instance.Initialize(NodeMap[_startNodeAddress].GameObject.transform.position);
 	}
 	private void CreatePathObject(Path path)
 	{
