@@ -36,25 +36,25 @@ public class PathRenderer : MonoBehaviour
 	public bool BothSides = true;
 
 	public GameObject ColliderTemplate;
-	public void Generate(MazeGenerator maze)
+	public void Generate()
 	{
 
 		_vertices = new List<Vector3>();
 		_normals = new List<Vector3>();
 		_triangles = new List<int>();
 
-		foreach ((var currentNodeAddress, var currentNode) in maze.NodeMap)
+		foreach ((var currentNodeAddress, var currentNode) in Maze.NodeMap)
 		{
 			var adjacentWickets = new List<Wicket>();
 
 			foreach (var neighborAddress in currentNode.Neighbors)
 			{
-				var neighborNode = maze.NodeMap[neighborAddress];
+				var neighborNode = Maze.NodeMap[neighborAddress];
 				var pathID = new PathID(currentNodeAddress, neighborAddress);
 
 
 
-				if (maze.Paths.TryGetValue(pathID, out var path))
+				if (Maze.Paths.TryGetValue(pathID, out var path))
 				{
 					// Make the closest wicket at each intersection
 					var wicket = MakeWicket(currentNode.GameObject.transform.position, neighborNode.GameObject.transform.position, 0.22f);
@@ -157,20 +157,20 @@ public class PathRenderer : MonoBehaviour
 		// add wickets in each path
 		var checkedPaths = new HashSet<PathID>();
 
-		foreach ((var currentNodeAddress, var currentNode) in maze.NodeMap)
+		foreach ((var currentNodeAddress, var currentNode) in Maze.NodeMap)
 		{
 			var adjacentWickets = new List<Wicket>();
 
 			foreach (var neighborAddress in currentNode.Neighbors)
 			{
-				var neighborNode = maze.NodeMap[neighborAddress];
+				var neighborNode = Maze.NodeMap[neighborAddress];
 				var pathID = new PathID(currentNodeAddress, neighborAddress);
 
 				if (checkedPaths.Contains(pathID))
 				{
 					continue;
 				}
-				if (maze.Paths.TryGetValue(pathID, out var path))
+				if (Maze.Paths.TryGetValue(pathID, out var path))
 				{
 					var wicket1 = currentNode.Wickets[neighborAddress];
 					var wicket2 = MakeWicket(currentNode.GameObject.transform.position, neighborNode.GameObject.transform.position, 0.5f);

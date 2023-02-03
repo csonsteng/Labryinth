@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
 
+
 public class MazeGenerator : MonoBehaviour
 {
 	public PathRenderer PathRenderer;
@@ -16,22 +17,10 @@ public class MazeGenerator : MonoBehaviour
 	public Material StartMaterial;
 	public Material EndMaterial;
 
-	
 
-	public readonly Dictionary<NodeAddress, Node> NodeMap = new();
-	public readonly Dictionary<PathID, Path> Paths = new();
 
-	public NodeAddress StartNode => _startNodeAddress;
-	public NodeAddress EndNode => _endNodeAddress;
-
-	private NodeAddress _startNodeAddress;
-	private NodeAddress _endNodeAddress;
-
-	private void Start()
-	{
-		Logger.Disable();
-		Redraw();
-	}
+	private Dictionary<NodeAddress, Node> NodeMap => Maze.NodeMap;
+	private Dictionary<PathID, Path> Paths => Maze.Paths;
 
 	[ContextMenu("Redraw")]
 	public void Redraw()
@@ -41,8 +30,6 @@ public class MazeGenerator : MonoBehaviour
 		//GenerateAngledConnection();
 		//GenerateTriConnection();
 		Draw();
-		StartGame();
-		PathRenderer.Generate(this);
 	}
 
 	private void Clear()
@@ -111,57 +98,59 @@ public class MazeGenerator : MonoBehaviour
 		return true;
 	}
 
+	/* Test Only
 	private void GenerateAngledConnection()
 	{
 		FillNodeMap(1);
-		_startNodeAddress = new NodeAddress(1, 0);
+		Maze.StartNode = new NodeAddress(1, 0);
 		var branchAddress = new NodeAddress(1, 90);
-		_endNodeAddress = new NodeAddress(1, 180);
+		Maze.EndNode = new NodeAddress(1, 180);
 
-		TryAddPath(_startNodeAddress, branchAddress);
-		TryAddPath(branchAddress, _endNodeAddress);
+		TryAddPath(Maze.StartNode, branchAddress);
+		TryAddPath(branchAddress, Maze.EndNode);
 	}
 
 	private void GenerateTriConnection()
 	{
 		FillNodeMap(2);
-		_startNodeAddress = new NodeAddress(2, 45);
+		Maze.StartNode = new NodeAddress(2, 45);
 		var branchAddress = new NodeAddress(1, 90);
 		var branchAddress3 = new NodeAddress(1, 0);
 		var branchAddress4 = new NodeAddress(1, 180);
 		var branchAddress2 = new NodeAddress(2, 90);
-		_endNodeAddress = new NodeAddress(2, 135);
+		Maze.EndNode = new NodeAddress(2, 135);
 
-		TryAddPath(_startNodeAddress, branchAddress2);
+		TryAddPath(Maze.StartNode, branchAddress2);
 		TryAddPath(branchAddress, branchAddress2);
 		//TryAddPath(branchAddress, branchAddress3);
 		//TryAddPath(branchAddress, branchAddress4);
-		TryAddPath(branchAddress2, _endNodeAddress);
+		TryAddPath(branchAddress2, Maze.EndNode);
 	}
+	*/
 
 	private void Generate()
 	{
 
 		FillNodeMap(Size);
 
-		_startNodeAddress = RandomNodeAddress();
-		_endNodeAddress = RandomNodeAddress();
-		while (_endNodeAddress.Equals(_startNodeAddress))
+		Maze.StartNodeAddress = RandomNodeAddress();
+		Maze.EndNodeAddress = RandomNodeAddress();
+		while (Maze.EndNodeAddress.Equals(Maze.StartNodeAddress))
 		{
-			_endNodeAddress = RandomNodeAddress();
+			Maze.EndNodeAddress = RandomNodeAddress();
 		}
 
 		var visitedList = new List<NodeAddress>()
 		{
-			_startNodeAddress
+			Maze.StartNodeAddress
 		};
 
-		var currentStep = NodeMap[_startNodeAddress];
+		var currentStep = NodeMap[Maze.StartNodeAddress];
 		var attempts = 0;
 		var maxAttempts = 1000;
 
 		// connect the start to the end
-		while (!currentStep.Address.Equals(_endNodeAddress) && attempts < maxAttempts)
+		while (!currentStep.Address.Equals(Maze.EndNodeAddress) && attempts < maxAttempts)
 		{
 			attempts++;
 			if (!currentStep.TryGetRandomNeighbor(visitedList, out var randomNeighbor))
@@ -225,9 +214,12 @@ public class MazeGenerator : MonoBehaviour
 			}
 		}
 
-		Logger.Log($"Start: {_startNodeAddress}, End: {_endNodeAddress}");
+		Logger.Log($"Start: {Maze.StartNodeAddress}, End: {Maze.EndNodeAddress}");
 	}
 
+	/// <summary>
+	/// Delete this later. Just for debug stuff.
+	/// </summary>
 	private void Draw()
 	{
 		NodeObjectTemplate.SetActive(false);
@@ -238,26 +230,24 @@ public class MazeGenerator : MonoBehaviour
 			var nodeObject = Instantiate(NodeObjectTemplate, NodeObjectTemplate.transform.parent);
 			nodeObject.name = node.Address.ToString();
 			nodeObject.transform.localPosition = node.Position(Scale);
-			nodeObject.SetActive(true);
 			node.GameObject = nodeObject;
 
-			if(node.Address.Equals(_startNodeAddress))
+			if(node.Address.Equals(Maze.StartNodeAddress))
 			{
 				SetObjectMaterial(nodeObject, StartMaterial);
 				nodeObject.transform.localScale = 5f * Vector3.one;
+				nodeObject.SetActive(true);
 			}
-			if (node.Address.Equals(_endNodeAddress))
+			if (node.Address.Equals(Maze.EndNodeAddress))
 			{
 				SetObjectMaterial(nodeObject, EndMaterial);
 				nodeObject.transform.localScale = 5f * Vector3.one;
+				nodeObject.SetActive(true);
+				nodeObject.tag = "Finish";
 			}
 		}
 	}
 
-	private void StartGame()
-	{
-		FirstPersonController.Instance.Initialize(NodeMap[_startNodeAddress].GameObject.transform.position);
-	}
 	private void CreatePathObject(Path path)
 	{
 		var pathObject = Instantiate(PathObjectTemplate, PathObjectTemplate.transform.parent);

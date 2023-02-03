@@ -3,18 +3,7 @@ using System.Collections.Generic;
 using UnityEngine;
 
 public class FirstPersonController : MonoBehaviour
-{
-    public static FirstPersonController Instance => GetInstance();
-    private static FirstPersonController _instance;
-    public static FirstPersonController GetInstance()
-	{
-        if (_instance == null)
-		{
-            _instance = FindObjectOfType<FirstPersonController>();
-		}
-        return _instance;
-	}
-
+{ 
     private bool _initialized;
     [SerializeField] private float _forwardSpeed = 100f;
     [SerializeField] private float _sideSpeed = 50f;
@@ -25,9 +14,10 @@ public class FirstPersonController : MonoBehaviour
 
     private bool _skipFrame = true;
 
-    public void Initialize(Vector3 location)
+    public void Initialize()
 	{
-        transform.localPosition = new Vector3(location.x, 0.5f, location.z);
+
+        transform.position = Maze.StartNode.GameObject.transform.position + new Vector3(0f, 0.5f, 0f);
         
         Cursor.lockState = CursorLockMode.Locked;
         _initialized = true;
@@ -62,4 +52,13 @@ public class FirstPersonController : MonoBehaviour
         _characterCamera.transform.Rotate(Vector3.left, mouseInputY * _cameraSpeed * Time.deltaTime);
         transform.Rotate(Vector3.up, mouseInputX * _cameraSpeed * Time.deltaTime);
     }
+
+	private void OnCollisionEnter(Collision collision)
+	{
+        Debug.Log(collision.collider.gameObject.tag);
+		if (collision.collider.gameObject.CompareTag("Finish"))
+		{
+            Debug.Log("YOU WIN!");
+		}
+	}
 }
