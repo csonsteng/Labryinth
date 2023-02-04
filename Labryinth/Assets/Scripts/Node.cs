@@ -11,6 +11,8 @@ public class Node
 	public List<NodeAddress> Neighbors = new();
 
 	public GameObject GameObject;
+	public Vector3 Position => _position;
+	private Vector3 _position;
 
 	public Dictionary<NodeAddress, Wicket> Wickets = new Dictionary<NodeAddress, Wicket>();
 
@@ -20,11 +22,16 @@ public class Node
 		Address = new NodeAddress(radius, theta);
 	}
 
-	public Vector3 Position(float scale)
-	{
-		return new Vector3(scale * X, 0f, scale * Y);
-	}
+	public bool IsNeighbor(NodeAddress node) => Neighbors.Contains(node);
 
+	public void SetWorldPosition(float scale)
+	{
+		_position = new Vector3(X * scale, 0f, Y * scale);
+		if(GameObject != null)
+		{
+			GameObject.transform.position = _position;
+		}
+	}
 
 	public bool TryGetRandomNeighbor(List<NodeAddress> exclusionList, out NodeAddress address)
 	{
@@ -45,7 +52,7 @@ public class Node
 		address = neighbors[index];
 		return true;
 	}
-	private float X => CalculateX();
+	public float X => CalculateX();
 
 	private float CalculateX()
 	{
@@ -56,7 +63,7 @@ public class Node
 		return (float)x;
 	}
 
-	private float Y => CalculateY();
+	public float Y => CalculateY();
 
 	private float CalculateY()
 	{

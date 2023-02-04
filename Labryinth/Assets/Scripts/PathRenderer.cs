@@ -57,7 +57,7 @@ public class PathRenderer : MonoBehaviour
 				if (Maze.Paths.TryGetValue(pathID, out var path))
 				{
 					// Make the closest wicket at each intersection
-					var wicket = MakeWicket(currentNode.GameObject.transform.position, neighborNode.GameObject.transform.position, 0.22f);
+					var wicket = MakeWicket(currentNode.Position, neighborNode.Position, 0.22f);
 					currentNode.Wickets[neighborAddress] = wicket;
 					adjacentWickets.Add(wicket);
 				}
@@ -70,7 +70,7 @@ public class PathRenderer : MonoBehaviour
 			}
 
 
-			var basePoint = currentNode.GameObject.transform.position;
+			var basePoint = currentNode.Position;
 
 			if (adjacentWickets.Count == 1)
 			{
@@ -173,7 +173,7 @@ public class PathRenderer : MonoBehaviour
 				if (Maze.Paths.TryGetValue(pathID, out var path))
 				{
 					var wicket1 = currentNode.Wickets[neighborAddress];
-					var wicket2 = MakeWicket(currentNode.GameObject.transform.position, neighborNode.GameObject.transform.position, 0.5f);
+					var wicket2 = MakeWicket(currentNode.Position, neighborNode.Position, 0.5f);
 					var wicket3 = neighborNode.Wickets[currentNodeAddress];
 
 					AddTriangles(wicket1, wicket2);

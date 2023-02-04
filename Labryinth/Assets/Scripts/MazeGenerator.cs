@@ -60,6 +60,9 @@ public class MazeGenerator : MonoBehaviour
 				var node = new Node(r, theta);
 				NodeMap.Add(node.Address, node);
 
+
+				node.SetWorldPosition(Scale);
+
 				if (NodeMap.TryGetValue(new NodeAddress(r - 1, theta), out var neighbor))
 				{
 					node.Neighbors.Add(neighbor.Address);
@@ -149,6 +152,8 @@ public class MazeGenerator : MonoBehaviour
 		var attempts = 0;
 		var maxAttempts = 1000;
 
+
+
 		// connect the start to the end
 		while (!currentStep.Address.Equals(Maze.EndNodeAddress) && attempts < maxAttempts)
 		{
@@ -159,7 +164,7 @@ public class MazeGenerator : MonoBehaviour
 				currentStep = NodeMap[visitedList[randomVisitedNode]];
 				Logger.Log($"Attempt {attempts} -- no remaining neighbors on {currentStep}");
 			}
-			if(!NodeMap.TryGetValue(randomNeighbor, out var randomNode))
+			if (!NodeMap.TryGetValue(randomNeighbor, out var randomNode))
 			{
 				Logger.Log($"Attempt {attempts} -- {randomNeighbor} does not exist");
 				continue;
@@ -178,10 +183,31 @@ public class MazeGenerator : MonoBehaviour
 			visitedList.Add(currentStep.Address);
 		}
 
-		if(attempts + 1 >= maxAttempts)
+		if (attempts + 1 >= maxAttempts)
 		{
 			Redraw();
 		}
+		// ensure neither the start or end nodes are dead ends
+		foreach(var neighbor in Maze.StartNode.Neighbors)
+		{
+			if(!Paths.ContainsKey(new PathID(Maze.StartNodeAddress, neighbor)))
+			{
+				TryAddPath(Maze.StartNodeAddress, neighbor);
+				visitedList.Add(neighbor);
+				break;
+			}
+		}
+		foreach (var neighbor in Maze.EndNode.Neighbors)
+		{
+			if (!Paths.ContainsKey(new PathID(Maze.EndNodeAddress, neighbor)))
+			{
+				TryAddPath(Maze.EndNodeAddress, neighbor);
+				visitedList.Add(neighbor);
+				break;
+			}
+		}
+
+
 
 		// add some other random unconnected nodes to ensure a decent size
 		while (visitedList.Count < 3 * NodeMap.Keys.Count / 4)
@@ -197,7 +223,7 @@ public class MazeGenerator : MonoBehaviour
 
 		// add some random additional paths whether to existing nodes or not
 		var randomAdditionalConnections = 0.1f * NodeMap.Keys.Count;
-		
+
 		for (var i = 0; i < randomAdditionalConnections; i++)
 		{
 			var randomNodeAddress = Random.Range(0, visitedList.Count);
@@ -218,7 +244,7 @@ public class MazeGenerator : MonoBehaviour
 	}
 
 	/// <summary>
-	/// Delete this later. Just for debug stuff.
+	/// Delete this later. Just for debug stuff. CAVEAT : Will need a trigger collider at the end node still
 	/// </summary>
 	private void Draw()
 	{
@@ -227,25 +253,28 @@ public class MazeGenerator : MonoBehaviour
 
 		foreach (var node in NodeMap.Values)
 		{
-			var nodeObject = Instantiate(NodeObjectTemplate, NodeObjectTemplate.transform.parent);
-			nodeObject.name = node.Address.ToString();
-			nodeObject.transform.localPosition = node.Position(Scale);
-			node.GameObject = nodeObject;
-
 			if(node.Address.Equals(Maze.StartNodeAddress))
 			{
-				SetObjectMaterial(nodeObject, StartMaterial);
-				nodeObject.transform.localScale = 5f * Vector3.one;
-				nodeObject.SetActive(true);
+				SetObjectMaterial(MakeNodeGameObject(node), StartMaterial);
 			}
 			if (node.Address.Equals(Maze.EndNodeAddress))
 			{
+				var nodeObject = MakeNodeGameObject(node);
 				SetObjectMaterial(nodeObject, EndMaterial);
-				nodeObject.transform.localScale = 5f * Vector3.one;
-				nodeObject.SetActive(true);
 				nodeObject.tag = "Finish";
 			}
 		}
+	}
+
+	private GameObject MakeNodeGameObject(Node node)
+	{
+		var nodeObject = Instantiate(NodeObjectTemplate, NodeObjectTemplate.transform.parent);
+		nodeObject.name = node.Address.ToString();
+		node.GameObject = nodeObject;
+		nodeObject.transform.position = node.Position;
+		nodeObject.transform.localScale = Scale * Vector3.one;
+		nodeObject.SetActive(true);
+		return nodeObject;
 	}
 
 	private void CreatePathObject(Path path)
@@ -253,8 +282,8 @@ public class MazeGenerator : MonoBehaviour
 		var pathObject = Instantiate(PathObjectTemplate, PathObjectTemplate.transform.parent);
 		pathObject.transform.localPosition = Vector3.zero;
 		var lineRenderer = pathObject.GetComponent<LineRenderer>();
-		lineRenderer.SetPosition(0, NodeMap[path.PathID.Address1].Position(Scale));
-		lineRenderer.SetPosition(1, NodeMap[path.PathID.Address2].Position(Scale));
+		lineRenderer.SetPosition(0, NodeMap[path.PathID.Address1].Position);
+		lineRenderer.SetPosition(1, NodeMap[path.PathID.Address2].Position);
 
 		pathObject.SetActive(true);
 		path.GameObject = pathObject;

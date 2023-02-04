@@ -10,6 +10,7 @@ public class GameManager : MonoBehaviour
 	[SerializeField] private MazeGenerator _mazeGenerator;
 	[SerializeField] private FirstPersonController _player;
 	[SerializeField] private PathRenderer _pathRenderer;
+	[SerializeField] private Enemy _enemy;
 
 	public Vector3 PlayerPosition => _player.gameObject.transform.position;
 
@@ -36,8 +37,9 @@ public class GameManager : MonoBehaviour
 		Logger.Disable();
 		Maze = new Maze();
 		_mazeGenerator.Redraw();
-		_player.Initialize();
 		_pathRenderer.Generate();
+		_player.Initialize();
+		_enemy.Spawn();
 	}
 
 

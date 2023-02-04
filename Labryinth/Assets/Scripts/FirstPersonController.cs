@@ -17,7 +17,7 @@ public class FirstPersonController : MonoBehaviour
     public void Initialize()
 	{
 
-        transform.position = Maze.StartNode.GameObject.transform.position + new Vector3(0f, 0.5f, 0f);
+        transform.position = Maze.StartNode.Position + new Vector3(0f, 0.5f, 0f);
         
         Cursor.lockState = CursorLockMode.Locked;
         _initialized = true;
