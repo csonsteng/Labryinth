@@ -66,6 +66,7 @@ public class PathRenderer : MonoBehaviour
 
 			if(adjacentWickets.Count == 0)
 			{
+				// node is not connected to the maze
 				continue;
 			}
 
@@ -74,7 +75,12 @@ public class PathRenderer : MonoBehaviour
 
 			if (adjacentWickets.Count == 1)
 			{
-				SealWicket(basePoint, adjacentWickets[0]);
+				var dummyNodePosition = 2*currentNode.Position - AverageWicketLocation(adjacentWickets[0]);
+				var wicket = MakeWicket(currentNode.Position, dummyNodePosition, 1f);
+				currentNode.Wickets[currentNode.Address] = wicket;
+				adjacentWickets.Add(wicket);
+
+				SealWicket(basePoint, adjacentWickets[1]);
 			}
 
 			var intersectionCenter = Vector3.zero;
