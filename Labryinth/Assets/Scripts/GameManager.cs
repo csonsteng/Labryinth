@@ -1,44 +1,27 @@
+using Cysharp.Threading.Tasks;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
-public class GameManager : MonoBehaviour
+public class GameManager : Singleton<GameManager>
 {
-	
-
-
-	[SerializeField] private MazeGenerator _mazeGenerator;
-	[SerializeField] private FirstPersonController _player;
-	[SerializeField] private PathRenderer _pathRenderer;
 	[SerializeField] private Enemy _enemy;
 
-	public Vector3 PlayerPosition => _player.gameObject.transform.position;
 
 
 	public Maze Maze;
-	public static GameManager Instance => GetInstance();
-    private static GameManager GetInstance()
-	{
-		if (_instance == null)
-		{
-			_instance = FindObjectOfType<GameManager>();
-		}
-		return _instance;
-	}
-    private static GameManager _instance;
 
-	private void OnDestroy()
-	{
-		_instance = null;
-	}
-
-	private void Start()
+	private async void Start()
 	{
 		Logger.Disable();
-		Maze = new Maze();
-		_mazeGenerator.Redraw();
-		_pathRenderer.Generate();
-		_player.Initialize();
+		MazeGenerator.Instance.Redraw();
+		PathRenderer.Instance.Generate();
+		await UniTask.WaitForEndOfFrame(this);
+
+		Cursor.lockState = CursorLockMode.Locked;
+		Cursor.visible = false;
+
+		Player.Instance.Initialize();
 		_enemy.Spawn();
 	}
 

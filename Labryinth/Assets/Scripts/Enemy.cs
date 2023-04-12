@@ -67,7 +67,7 @@ public class Enemy : MonoBehaviour
 
 	}
 
-	private float DistanceToPlayer => (GameManager.Instance.PlayerPosition - transform.position).magnitude;
+	private float DistanceToPlayer => (Player.Position - transform.position).magnitude;
 	private Vector3 VectorToTarget => _targetNode.Position - transform.position;
 	private float DistanceToTarget => VectorToTarget.magnitude;
 	private Vector3 DirectionToTarget => VectorToTarget.normalized;

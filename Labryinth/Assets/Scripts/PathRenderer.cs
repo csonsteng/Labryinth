@@ -1,4 +1,3 @@
-using Newtonsoft.Json.Schema;
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -6,7 +5,7 @@ using System.Linq;
 using UnityEngine;
 
 [RequireComponent(typeof(MeshFilter), typeof(MeshRenderer))]
-public class PathRenderer : MonoBehaviour
+public class PathRenderer : Singleton<PathRenderer>
 {
 
 	/* I have a list of nodes and paths connecting them

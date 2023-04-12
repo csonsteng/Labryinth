@@ -4,18 +4,18 @@ using System.Linq;
 using UnityEngine;
 
 
-public class MazeGenerator : MonoBehaviour
+public class MazeGenerator : Singleton<MazeGenerator>
 {
-	public PathRenderer PathRenderer;
 
-	public int Size = 4;
-	public float Scale = 10f;
+	[SerializeField] private int _size = 4;
+	[SerializeField] private float _scale = 10f;
 
-	public GameObject NodeObjectTemplate;
-	public GameObject PathObjectTemplate;
+	// templates and materials are for debug purposes
+	[SerializeField] private GameObject _nodeObjectTemplate;
+	[SerializeField] private GameObject _pathObjectTemplate;
 
-	public Material StartMaterial;
-	public Material EndMaterial;
+	[SerializeField] private Material _startMaterial;
+	[SerializeField] private Material _endMaterial;
 
 
 
@@ -27,14 +27,11 @@ public class MazeGenerator : MonoBehaviour
 	{
 		Clear();
 		Generate();
-		//GenerateAngledConnection();
-		//GenerateTriConnection();
 		Draw();
 	}
 
 	private void Clear()
 	{
-
 		foreach (var spawnedObject in NodeMap.Values)
 		{
 			Destroy(spawnedObject.GameObject);
@@ -61,7 +58,7 @@ public class MazeGenerator : MonoBehaviour
 				NodeMap.Add(node.Address, node);
 
 
-				node.SetWorldPosition(Scale);
+				node.SetWorldPosition(_scale);
 
 				if (NodeMap.TryGetValue(new NodeAddress(r - 1, theta), out var neighbor))
 				{
@@ -133,8 +130,7 @@ public class MazeGenerator : MonoBehaviour
 
 	private void Generate()
 	{
-
-		FillNodeMap(Size);
+		FillNodeMap(_size);
 
 		Maze.StartNodeAddress = RandomNodeAddress();
 		Maze.EndNodeAddress = RandomNodeAddress();
@@ -248,19 +244,19 @@ public class MazeGenerator : MonoBehaviour
 	/// </summary>
 	private void Draw()
 	{
-		NodeObjectTemplate.SetActive(false);
-		PathObjectTemplate.SetActive(false);
+		_nodeObjectTemplate.SetActive(false);
+		_pathObjectTemplate.SetActive(false);
 
 		foreach (var node in NodeMap.Values)
 		{
 			if(node.Address.Equals(Maze.StartNodeAddress))
 			{
-				SetObjectMaterial(MakeNodeGameObject(node), StartMaterial);
+				SetObjectMaterial(MakeNodeGameObject(node), _startMaterial);
 			}
 			if (node.Address.Equals(Maze.EndNodeAddress))
 			{
 				var nodeObject = MakeNodeGameObject(node);
-				SetObjectMaterial(nodeObject, EndMaterial);
+				SetObjectMaterial(nodeObject, _endMaterial);
 				nodeObject.tag = "Finish";
 			}
 		}
@@ -268,18 +264,18 @@ public class MazeGenerator : MonoBehaviour
 
 	private GameObject MakeNodeGameObject(Node node)
 	{
-		var nodeObject = Instantiate(NodeObjectTemplate, NodeObjectTemplate.transform.parent);
+		var nodeObject = Instantiate(_nodeObjectTemplate, _nodeObjectTemplate.transform.parent);
 		nodeObject.name = node.Address.ToString();
 		node.GameObject = nodeObject;
 		nodeObject.transform.position = node.Position;
-		nodeObject.transform.localScale = Scale * Vector3.one;
+		nodeObject.transform.localScale = _scale * Vector3.one;
 		nodeObject.SetActive(true);
 		return nodeObject;
 	}
 
 	private void CreatePathObject(Path path)
 	{
-		var pathObject = Instantiate(PathObjectTemplate, PathObjectTemplate.transform.parent);
+		var pathObject = Instantiate(_pathObjectTemplate, _pathObjectTemplate.transform.parent);
 		pathObject.transform.localPosition = Vector3.zero;
 		var lineRenderer = pathObject.GetComponent<LineRenderer>();
 		lineRenderer.SetPosition(0, NodeMap[path.PathID.Address1].Position);

@@ -1331,10 +1331,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 158529da9ed9e694091648fbd7f42459, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  _mazeGenerator: {fileID: 1633107260}
-  _player: {fileID: 768249182}
-  _pathRenderer: {fileID: 703719141}
   _enemy: {fileID: 1004136358}
+  Maze: {fileID: 0}
 --- !u!4 &1161196794
 Transform:
   m_ObjectHideFlags: 0
@@ -1506,6 +1504,51 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1410415305}
   m_CullTransparentMesh: 1
+--- !u!1 &1545844869
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1545844871}
+  - component: {fileID: 1545844870}
+  m_Layer: 0
+  m_Name: Settings
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &1545844870
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1545844869}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: cdf9c5c0307a59540ae4d2de97dca71e, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  PlayerSettings: {fileID: 11400000, guid: d36e4aa3bd06dc345bb8614f5d01f224, type: 2}
+--- !u!4 &1545844871
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1545844869}
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: -9.213743, y: -22.381592, z: 1.64501}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_RootOrder: 7
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &1633107259
 GameObject:
   m_ObjectHideFlags: 0
@@ -1535,13 +1578,12 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 6b32c050ec1247e4d83e20925a1b08e4, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  PathRenderer: {fileID: 703719141}
-  Size: 5
-  Scale: 25
-  NodeObjectTemplate: {fileID: 978856112}
-  PathObjectTemplate: {fileID: 171922970}
-  StartMaterial: {fileID: 2100000, guid: 8388f3281c786cb4a959bc06afc69a8c, type: 2}
-  EndMaterial: {fileID: 2100000, guid: bc14df564b6035a4280acf9afb8f7e7a, type: 2}
+  _size: 4
+  _scale: 10
+  _nodeObjectTemplate: {fileID: 978856112}
+  _pathObjectTemplate: {fileID: 171922970}
+  _startMaterial: {fileID: 2100000, guid: 8388f3281c786cb4a959bc06afc69a8c, type: 2}
+  _endMaterial: {fileID: 2100000, guid: bc14df564b6035a4280acf9afb8f7e7a, type: 2}
 --- !u!4 &1633107261
 Transform:
   m_ObjectHideFlags: 0

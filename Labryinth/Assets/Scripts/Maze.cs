@@ -1,16 +1,9 @@
 ﻿using System.Collections.Generic;
 
-/// <summary>
-/// Currently drunk and can't decide if this setup is good or unnecessarily wild.
-/// </summary>
-public class Maze
+public class Maze: Singleton<Maze>
 {
 	public static Dictionary<NodeAddress, Node> NodeMap => Instance._nodeMap;
 	public static Dictionary<PathID, Path> Paths => Instance._paths;
-
-
-	private static Maze Instance => GameManager.Instance.Maze;
-
 	public static Node StartNode => NodeMap[StartNodeAddress];
 	public static Node EndNode => NodeMap[EndNodeAddress];
 
