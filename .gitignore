@@ -16,3 +16,11 @@ Labryinth/Logs/*
 Labryinth/.vs/Labryinth/v16/.suo
 Labryinth/Assembly-CSharp.csproj
 Labryinth/.vs/Labryinth/v16/.suo
+*.sln
+*.vsidx
+Labryinth/.vs/Labryinth/FileContentIndex/read.lock
+Labryinth/.vs/Labryinth/v17/.suo
+Labryinth/Assembly-CSharp.csproj
+Labryinth/Labryinth.sln
+Labryinth/UserSettings/Layouts/CurrentMaximizeLayout.dwlt
+Labryinth/UserSettings/Layouts/default-2021.dwlt
