@@ -45,17 +45,17 @@ public class GameManager : Singleton<GameManager>
 
 	private void OnApplicationPause(bool pause) => SetPauseState(pause);
 
-	private void OnApplicationFocus(bool focus) => SetPauseState(focus);
+	private void OnApplicationFocus(bool focus) => SetPauseState(!focus);
 
 	private void SetPauseState(bool paused)
 	{
 		if (paused)
-		{ 
+		{
 			_suspendedState = _state;
 			_state = GameState.Paused;
 			return;
 		}
-
+		Time.timeScale = 1;
 		_state = _suspendedState;
 	}
 

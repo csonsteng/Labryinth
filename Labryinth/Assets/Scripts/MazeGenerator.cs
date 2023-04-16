@@ -27,7 +27,7 @@ public class MazeGenerator : Singleton<MazeGenerator>
 	{
 		Clear();
 		Generate();
-		Draw();
+		//Draw();
 	}
 
 	private void Clear()
@@ -239,27 +239,14 @@ public class MazeGenerator : Singleton<MazeGenerator>
 		Logger.Log($"Start: {Maze.StartNodeAddress}, End: {Maze.EndNodeAddress}");
 	}
 
-	/// <summary>
-	/// Delete this later. Just for debug stuff. CAVEAT : Will need a trigger collider at the end node still
-	/// </summary>
 	private void Draw()
 	{
 		_nodeObjectTemplate.SetActive(false);
 		_pathObjectTemplate.SetActive(false);
 
-		foreach (var node in NodeMap.Values)
-		{
-			if(node.Address.Equals(Maze.StartNodeAddress))
-			{
-				SetObjectMaterial(MakeNodeGameObject(node), _startMaterial);
-			}
-			if (node.Address.Equals(Maze.EndNodeAddress))
-			{
-				var nodeObject = MakeNodeGameObject(node);
-				SetObjectMaterial(nodeObject, _endMaterial);
-				nodeObject.tag = "Finish";
-			}
-		}
+		SetObjectMaterial(MakeNodeGameObject(NodeMap[Maze.StartNodeAddress]), _startMaterial);
+		SetObjectMaterial(MakeNodeGameObject(NodeMap[Maze.EndNodeAddress]), _endMaterial);
+
 	}
 
 	private GameObject MakeNodeGameObject(Node node)

@@ -27,7 +27,7 @@ public class Player : Singleton<Player>
 	}
 	public void Initialize()
 	{
-        transform.position = Maze.StartNode.Position + new Vector3(0f, 0.5f, 0f);
+        transform.position = Maze.StartNode.Position + new Vector3(0f, 1f, 0f);
         transform.localEulerAngles = Vector3.zero;
 		_characterCamera.transform.localEulerAngles = Vector3.zero;
 		_settings = Settings.Instance.PlayerSettings;
@@ -36,6 +36,7 @@ public class Player : Singleton<Player>
 	}
 	private void Update()
 	{
+		if(Input.GetKeyDown(KeyCode.Escape)) { Time.timeScale = 0f; }
 		CheckInteractions();
 
 		UpdatePosition();
@@ -87,7 +88,7 @@ public class Player : Singleton<Player>
 			pitch -= 360f;
 		}
 		pitch -= mouseInputY * VerticalSensitivity * Time.deltaTime;
-		pitch = Mathf.Clamp(pitch, -15f, 15f);
+		pitch = Mathf.Clamp(pitch, -25f, 25f);
 
 		_characterCamera.transform.localEulerAngles = new Vector3(pitch, 0f, 0f);
 		transform.Rotate(Vector3.up, mouseInputX * HorizontalSensitivity * Time.deltaTime);

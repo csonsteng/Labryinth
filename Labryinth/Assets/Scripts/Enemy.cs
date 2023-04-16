@@ -42,7 +42,7 @@ public class Enemy : MonoBehaviour
 		_currentNode = Maze.EndNode;
 		_lastNode = Maze.EndNode;
 		_targetNode = Maze.EndNode;
-		transform.position = _currentNode.Position;
+		transform.position = _currentNode.Position + Vector3.up;
 		SearchForNextIntersection();
 		_state = State.Wandering;
 	}
@@ -57,7 +57,7 @@ public class Enemy : MonoBehaviour
 
 		// todo: check for player in sight
 
-		transform.position += DirectionToTarget * _runSpeed * Time.deltaTime;
+		transform.position += _runSpeed * Time.deltaTime * DirectionToTarget;
 
 		if(DistanceToTarget < 1)
 		{
@@ -67,7 +67,7 @@ public class Enemy : MonoBehaviour
 	}
 
 	private float DistanceToPlayer => (Player.Position - transform.position).magnitude;
-	private Vector3 VectorToTarget => _targetNode.Position - transform.position;
+	private Vector3 VectorToTarget => new(_targetNode.Position.x - transform.position.x, 0f, _targetNode.Position.z - transform.position.z);
 	private float DistanceToTarget => VectorToTarget.magnitude;
 	private Vector3 DirectionToTarget => VectorToTarget.normalized;
 

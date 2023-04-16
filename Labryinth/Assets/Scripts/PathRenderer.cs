@@ -35,6 +35,40 @@ public class PathRenderer : Singleton<PathRenderer>
 	public bool BothSides = true;
 
 	public GameObject ColliderTemplate;
+
+	private List<NormalDraws> _normalDraws = new();
+
+	public struct NormalDraws
+	{
+		Vector3 Start;
+		Vector3 End;
+		Color Color;
+
+		public NormalDraws(Vector3 vertex, Vector3 normal, Color color)
+		{
+			Start = vertex;
+			End = vertex + normal;
+			Color = color;
+		}
+
+		public void Draw()
+		{
+			Debug.DrawLine(Start, End, Color);
+		}
+	}
+
+	private void DrawLastNormal(Color color)
+	{
+		_normalDraws.Add(new NormalDraws(_vertices[^1], _normals[^1], color));
+	}
+
+	private void OnDrawGizmos()
+	{
+		foreach(var normalDraw in _normalDraws)
+		{
+			normalDraw.Draw();
+		}
+	}
 	public void Generate()
 	{
 
@@ -113,12 +147,15 @@ public class PathRenderer : Singleton<PathRenderer>
 						_vertices.Count
 					});
 
+					AddVertex(basePoint + distanceToCenter, basePoint);
+					//_vertices.Add(basePoint + distanceToCenter);
+					//_normals.Add(Vector3.up);
+					DrawLastNormal(Color.red);
 
-					_vertices.Add(basePoint + distanceToCenter);
-					_normals.Add(Vector3.up);
-
-					_vertices.Add(basePoint + distanceToCenter + Vector3.up * CeilingHeight);
-					_normals.Add(Vector3.down);
+					AddVertex(basePoint + distanceToCenter + Vector3.up * CeilingHeight, basePoint);
+					//_vertices.Add(basePoint + distanceToCenter + Vector3.up * CeilingHeight);
+					//_normals.Add(Vector3.down);
+					DrawLastNormal(Color.green);
 
 
 					var averagePoint = AverageWicketLocation(newWicket);
@@ -135,9 +172,11 @@ public class PathRenderer : Singleton<PathRenderer>
 			var floorVertex = _vertices.Count;
 			_vertices.Add(intersectionCenter);
 			_normals.Add(Vector3.up);
+			DrawLastNormal(Color.blue);
 			var ceilingVertex = _vertices.Count;
 			_vertices.Add(intersectionCenter + Vector3.up * CeilingHeight);
 			_normals.Add(Vector3.down);
+			DrawLastNormal(Color.magenta);
 
 			var orderedWickets = adjacentWickets.OrderBy(wicket =>
 			{
@@ -425,10 +464,8 @@ public class PathRenderer : Singleton<PathRenderer>
 		foreach (var vertex in vertices)
 		{
 			indices.Add(_vertices.Count);
-			_vertices.Add(vertex);
-
-			_normals.Add(new Vector3(vertex.x - basePoint.x, vertex.y - basePoint.y, vertex.z - basePoint.z));
-
+			AddVertex(vertex, basePoint);
+			DrawLastNormal(Color.white);
 		}
 		var index = 0;
 		if (distance == 0.5f)
@@ -440,6 +477,12 @@ public class PathRenderer : Singleton<PathRenderer>
 		}
 		return new Wicket(indices.ToArray(), index);
 
+	}
+
+	private void AddVertex(Vector3 vertex, Vector3 basePoint)
+	{
+		_vertices.Add(vertex);
+		_normals.Add((basePoint - vertex + Vector3.up).normalized);
 	}
 
 	private Vector3 Vector3Lerp(Vector3 start, Vector3 end, float distance)
