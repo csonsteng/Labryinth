@@ -16,7 +16,10 @@ public class Player : Singleton<Player>
 	private float StrafeSpeed => _settings.StrafeSpeed;
 
 	public static Vector3 Position => Instance.gameObject.transform.position;
+	public static Vector3 FacingDirection => Instance._facingDirection; 
+
 	private bool _canInteract = false;
+	private Vector3 _facingDirection;
 
 	private void Awake()
 	{
@@ -38,6 +41,8 @@ public class Player : Singleton<Player>
 		UpdatePosition();
 
 		UpdateCameras();
+
+		UpdateCachedFacingDirection();
 	}
 
 	private void CheckInteractions()
@@ -82,9 +87,17 @@ public class Player : Singleton<Player>
 			pitch -= 360f;
 		}
 		pitch -= mouseInputY * VerticalSensitivity * Time.deltaTime;
-		pitch = Mathf.Clamp(pitch, -12f, 12f);
+		pitch = Mathf.Clamp(pitch, -15f, 15f);
 
 		_characterCamera.transform.localEulerAngles = new Vector3(pitch, 0f, 0f);
 		transform.Rotate(Vector3.up, mouseInputX * HorizontalSensitivity * Time.deltaTime);
+	}
+
+	private void UpdateCachedFacingDirection()
+	{
+		var combinedEuler = new Vector3(_characterCamera.transform.localEulerAngles.x, transform.localEulerAngles.y, 0);
+		_facingDirection = Quaternion.Euler(combinedEuler) * Vector3.forward;
+
+		Debug.DrawRay(transform.position, _facingDirection, Color.green);
 	}
 }

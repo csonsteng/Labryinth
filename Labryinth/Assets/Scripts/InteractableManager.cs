@@ -8,6 +8,47 @@ public class InteractableManager : Singleton<InteractableManager>
 
 	private readonly List<Interactable> _availableInteractables = new();
 
+	private Interactable _targetInteractable;
+
+	private void Update()
+	{
+		CheckTargetInteractable();
+	}
+
+	private void CheckTargetInteractable()
+	{
+		foreach (var interactable in _availableInteractables)
+		{
+			var direction = Player.FacingDirection;
+			var ray = new Ray(transform.position, direction);
+			if (!Physics.Raycast(ray, out var hitInfo, 5f))
+			{
+				continue;
+			}
+			if (hitInfo.collider.gameObject != interactable.gameObject)
+			{
+				continue;
+			}
+			if(interactable == _targetInteractable)
+			{
+				return;
+			}
+			UpdateTargetInteractable(interactable);
+			interactable.ShowCanvas();
+			return;
+		}
+		UpdateTargetInteractable(null);
+	}
+
+	private void UpdateTargetInteractable(Interactable interactable)
+	{
+		if (_targetInteractable != null)
+		{
+			_targetInteractable.HideCanvas();
+		}
+		_targetInteractable = interactable;
+	}
+
 	public void Register(Interactable interactable)
 	{
 		if (_interactables.ContainsKey(interactable.gameObject))
@@ -27,7 +68,7 @@ public class InteractableManager : Singleton<InteractableManager>
 	{ 
 		if (_interactables.TryGetValue(collider.gameObject, out var interactable))
 		{
-			EnableInteractable(interactable);
+			_availableInteractables.Add(interactable);
 		}
 	}
 
@@ -35,71 +76,17 @@ public class InteractableManager : Singleton<InteractableManager>
 	{
 		if (_interactables.TryGetValue(collider.gameObject, out var interactable))
 		{
-			DisableInteractable(interactable);
+			_availableInteractables.Remove(interactable);
 		}
-	}
-
-	public void EnableInteractable(Interactable interactable)
-	{
-		interactable.ShowCanvas();
-		_availableInteractables.Add(interactable);
-	}
-	public void DisableInteractable(Interactable interactable)
-	{
-		interactable.HideCanvas();
-		_availableInteractables.Remove(interactable);
 	}
 
 	public void OnInteractButtonPressed()
 	{
-		if(_availableInteractables.Count == 0)
+		if(_targetInteractable == null)
 		{
 			return;
 		}
-		/*
-		if (_availableInteractables.Count == 1)
-		{
-			_availableInteractables[0].Interact();
-			return;
-		}*/
-		// todo: Determine which interactable we are facing
-		// crossproduct of our rotation and canvas rotation = 0??
-
-		_availableInteractables[0].Interact();
-
-		// blahhhhhhh
-		var interable = _availableInteractables[0];
-		var canvasRotation = interable.CanvasRotation();
-		var playerRotation = Player.Instance.transform.rotation;
-
-		var angleCtoP = Quaternion.Angle(canvasRotation, playerRotation);
-		var anglePtoC = Quaternion.Angle(playerRotation, canvasRotation);
-		var dotCtoP = Quaternion.Dot(canvasRotation, playerRotation);
-		var dotPtoC = Quaternion.Dot(playerRotation, canvasRotation);
-		var xCtoP = canvasRotation * playerRotation;
-		var xPtoC =playerRotation * canvasRotation;
-		var vxCtoP = Vector3.Cross(canvasRotation.eulerAngles, playerRotation.eulerAngles);
-		var vxPtoC = Vector3.Cross(playerRotation.eulerAngles, canvasRotation.eulerAngles);
-
-		var all = "";
-		AddToString(nameof(angleCtoP), angleCtoP.ToString());
-		AddToString(nameof(anglePtoC), anglePtoC.ToString());
-		AddToString(nameof(dotCtoP), dotCtoP.ToString());
-		AddToString(nameof(dotPtoC), dotPtoC.ToString());
-		AddToString(nameof(xCtoP), xCtoP.ToString());
-		AddToString(nameof(xPtoC), xPtoC.ToString());
-		AddToString(nameof(vxCtoP), vxCtoP.ToString());
-		AddToString(nameof(vxPtoC), vxPtoC.ToString());
-
-
-
-		Debug.Log(all);
-
-		void AddToString(string variableName, string value)
-		{
-			all += $"{variableName} : {value}\n";
-		}
-
+		_targetInteractable.Interact();
 	}
 
 

@@ -18,7 +18,7 @@ public class GameManager : Singleton<GameManager>
 		Paused,
 		Ending,
 	}
-	public bool IsRunning => NullableInstance != null && _state == GameState.Running;
+	public static bool IsRunning => NullableInstance != null && Instance._state == GameState.Running;
 
 	private async void Start()
 	{

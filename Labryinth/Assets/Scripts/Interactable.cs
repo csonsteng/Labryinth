@@ -3,6 +3,8 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
+[RequireComponent(typeof(Collider))]
+[RequireComponent(typeof(Rigidbody))]
 public class Interactable : MonoBehaviour
 {
 	[SerializeField] private CanvasBillboard _canvas;
@@ -12,11 +14,6 @@ public class Interactable : MonoBehaviour
 	{
 		InteractableManager.Instance.Register(this);
 		HideCanvas();
-	}
-
-	public Quaternion CanvasRotation()
-	{
-		return _canvas.transform.rotation;
 	}
 
 	public void SetInteractAction(Action callback)
@@ -41,7 +38,7 @@ public class Interactable : MonoBehaviour
 
 	private void OnDestroy()
 	{
-		if (GameManager.Instance.IsRunning)
+		if (GameManager.IsRunning)
 		{
 			InteractableManager.Instance.DeRegister(this);
 		}

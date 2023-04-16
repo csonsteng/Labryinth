@@ -5,7 +5,6 @@ using UnityEngine.Android;
 
 public class Enemy : MonoBehaviour
 {
-	[SerializeField] private float _walkSpeed = 5f;
 	[SerializeField] private float _runSpeed = 8f;
 
 	[SerializeField] private float _senseRadius = 20f;
