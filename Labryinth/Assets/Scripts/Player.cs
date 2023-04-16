@@ -16,6 +16,7 @@ public class Player : Singleton<Player>
 	private float StrafeSpeed => _settings.StrafeSpeed;
 
 	public static Vector3 Position => Instance.gameObject.transform.position;
+	private bool _canInteract = false;
 
 	private void Awake()
 	{
@@ -28,28 +29,55 @@ public class Player : Singleton<Player>
 		_characterCamera.transform.localEulerAngles = Vector3.zero;
 		_settings = Settings.Instance.PlayerSettings;
         gameObject.SetActive(true);
+		_canInteract = true;
 	}
 	private void Update()
-    {
-        var strafeMovement = Input.GetAxis("Horizontal");
-        var forwardMovement = Input.GetAxis("Vertical");
+	{
+		CheckInteractions();
+
+		UpdatePosition();
+
+		UpdateCameras();
+	}
+
+	private void CheckInteractions()
+	{
+		if (Input.GetAxis("Interact") <= 0f)
+		{
+			_canInteract = true;
+			return;
+		}
+		if(!_canInteract)
+		{
+			return;
+		}
+		_canInteract = false;
+		InteractableManager.Instance.OnInteractButtonPressed();
+	}
+
+	private void UpdatePosition()
+	{
+		var strafeMovement = Input.GetAxis("Horizontal");
+		var forwardMovement = Input.GetAxis("Vertical");
 
 		var running = Input.GetAxis("Run") > 0f;
 
-		var forwardSpeed = WalkSpeed * ( running ? RunMultiplier : 1f);
+		var forwardSpeed = WalkSpeed * (running ? RunMultiplier : 1f);
 		var strafeSpeed = StrafeSpeed * (running ? RunMultiplier : 1f);
 
 		var localMoveVector = new Vector3(strafeMovement * strafeSpeed, 0f, forwardMovement * forwardSpeed) * Time.deltaTime;
-        var convertedMoveVector = Quaternion.Euler(transform.localEulerAngles) * localMoveVector;
+		var convertedMoveVector = Quaternion.Euler(transform.localEulerAngles) * localMoveVector;
 
-        _controller.Move(convertedMoveVector);
+		_controller.Move(convertedMoveVector);
 
+	}
+	private void UpdateCameras()
+	{
+		var mouseInputX = Input.GetAxis("Mouse X");
+		var mouseInputY = Input.GetAxis("Mouse Y");
 
-        var mouseInputX = Input.GetAxis("Mouse X");
-        var mouseInputY = Input.GetAxis("Mouse Y");
-		
-        var pitch = _characterCamera.transform.localEulerAngles.x;
-		if(pitch > 90f)
+		var pitch = _characterCamera.transform.localEulerAngles.x;
+		if (pitch > 90f)
 		{
 			pitch -= 360f;
 		}
@@ -58,14 +86,5 @@ public class Player : Singleton<Player>
 
 		_characterCamera.transform.localEulerAngles = new Vector3(pitch, 0f, 0f);
 		transform.Rotate(Vector3.up, mouseInputX * HorizontalSensitivity * Time.deltaTime);
-    }
-
-	private void OnCollisionEnter(Collision collision)
-	{
-        Debug.Log(collision.collider.gameObject.tag);
-		if (collision.collider.gameObject.CompareTag("Finish"))
-		{
-            Debug.Log("YOU WIN!");
-		}
 	}
 }

@@ -14,6 +14,6 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   HorizontalSensitivity: 500
   VerticalSensitivity: 300
-  WalkSpeed: 7
+  WalkSpeed: 6
   RunMultiplier: 1.8
   StrafeSpeed: 3
