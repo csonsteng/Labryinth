@@ -61,14 +61,14 @@ public class PathRenderer : Singleton<PathRenderer>
 	{
 		_normalDraws.Add(new NormalDraws(_vertices[^1], _normals[^1], color));
 	}
-
+	/*
 	private void OnDrawGizmos()
 	{
 		foreach(var normalDraw in _normalDraws)
 		{
 			normalDraw.Draw();
 		}
-	}
+	}*/
 	public void Generate()
 	{
 
@@ -232,10 +232,13 @@ public class PathRenderer : Singleton<PathRenderer>
 		{
 			vertices = _vertices.ToArray(),
 			triangles = _triangles.ToArray(),
-			normals = _normals.ToArray(),
+			//normals = _normals.ToArray(),
 			name = "Maze"
 		};
-
+		mesh.RecalculateNormals();
+		var normalsList = new List<Vector3>();
+		mesh.GetNormals(normalsList);
+		mesh.SetUVs(0, normalsList.ToArray());
 		GetComponent<MeshFilter>().mesh = mesh;
 
 	}
