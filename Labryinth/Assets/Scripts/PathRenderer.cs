@@ -4,7 +4,6 @@ using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
 
-[RequireComponent(typeof(MeshFilter), typeof(MeshRenderer))]
 public class PathRenderer : Singleton<PathRenderer>
 {
 
@@ -24,57 +23,94 @@ public class PathRenderer : Singleton<PathRenderer>
 	 * 
 	 * Lets make our vertices first, and then we'll figure out how we want to draw our triangles
 	 */
-	private List<Vector3> _vertices = new List<Vector3>();
-	private List<Vector3> _normals = new List<Vector3>();
 
-	private List<int> _triangles = new List<int>();
+	// todo: break out to multiple meshs so materials sit better
+
+	private class MeshGenerator
+	{
+		private readonly List<Vector3> _vertices = new List<Vector3>();
+		private readonly List<int> _triangles = new List<int>();
+		private readonly List<int> _reverseTriangles = new List<int>();
+		private readonly string _name;
+		public MeshGenerator(string name)
+		{
+			_name = name;
+		}
+
+		public IEnumerable<Vector3> Vertices => _vertices;
+
+		public void Add(Vector3 vertex) => _vertices.Add(vertex);
+		public void Add(List<int> indices)
+		{
+			_triangles.AddRange(indices);
+			for(var i = indices.Count - 1; i >= 0; i--)
+			{
+				_reverseTriangles.Add(indices[i]);
+			}
+		}
+
+		public void Generate(Transform parentTransform, Material material)
+		{
+			Generate(parentTransform, material, _triangles);
+			Generate(parentTransform, material, _reverseTriangles, "Reverse_");
+		}
+
+		private void Generate(Transform parentTransform, Material material, List<int> triangles, string namePrefix = "")
+		{
+
+			var meshObject = new GameObject($"{namePrefix}{_name}_Mesh", new Type[]
+			{
+				typeof(MeshFilter),
+				typeof(MeshRenderer),
+			});
+			meshObject.transform.parent = parentTransform;
+			meshObject.transform.localScale = Vector3.one;
+			meshObject.transform.localPosition = Vector3.zero;
+			meshObject.transform.eulerAngles = Vector3.zero;
+
+			var mesh = new Mesh
+			{
+				vertices = _vertices.ToArray(),
+				triangles = triangles.ToArray(),
+				name = "Maze"
+			};
+
+			var uvs = new List<Vector2>();
+
+			mesh.RecalculateBounds();
+			mesh.RecalculateNormals();
+			mesh.RecalculateTangents();
+			var bounds = mesh.bounds;
+			foreach (var vertex in _vertices)
+			{
+				uvs.Add((new Vector2(vertex.x / bounds.size.x, vertex.z / bounds.size.z)) * 10f);
+			}
+			mesh.SetUVs(0, uvs.ToArray());
+			meshObject.GetComponent<MeshFilter>().mesh = mesh;
+			meshObject.GetComponent<MeshRenderer>().material = material;
+		}
+	}
+
+	private MeshGenerator _floorMesh;
+	private MeshGenerator _wallsMesh;
+	private MeshGenerator _ceilingMesh;
+
+	private List<MeshGenerator> _additionalMeshes = new List<MeshGenerator>();
+
+	private List<Vector3> _vertices = new List<Vector3>();
 
 	public float CeilingHeight = 5f;
 	public float WicketWidth = 4f;
 
-	public bool BothSides = true;
-
 	public GameObject ColliderTemplate;
+	public Material Material;
 
-	private List<NormalDraws> _normalDraws = new();
-
-	public struct NormalDraws
-	{
-		Vector3 Start;
-		Vector3 End;
-		Color Color;
-
-		public NormalDraws(Vector3 vertex, Vector3 normal, Color color)
-		{
-			Start = vertex;
-			End = vertex + normal;
-			Color = color;
-		}
-
-		public void Draw()
-		{
-			Debug.DrawLine(Start, End, Color);
-		}
-	}
-
-	private void DrawLastNormal(Color color)
-	{
-		_normalDraws.Add(new NormalDraws(_vertices[^1], _normals[^1], color));
-	}
-	/*
-	private void OnDrawGizmos()
-	{
-		foreach(var normalDraw in _normalDraws)
-		{
-			normalDraw.Draw();
-		}
-	}*/
 	public void Generate()
 	{
-
+		_floorMesh = new MeshGenerator("Floor");
+		_wallsMesh = new MeshGenerator("Walls");
+		_ceilingMesh = new MeshGenerator("Ceiling");
 		_vertices = new List<Vector3>();
-		_normals = new List<Vector3>();
-		_triangles = new List<int>();
 
 		foreach ((var currentNodeAddress, var currentNode) in Maze.NodeMap)
 		{
@@ -147,15 +183,9 @@ public class PathRenderer : Singleton<PathRenderer>
 						_vertices.Count
 					});
 
-					AddVertex(basePoint + distanceToCenter, basePoint);
-					//_vertices.Add(basePoint + distanceToCenter);
-					//_normals.Add(Vector3.up);
-					DrawLastNormal(Color.red);
+					AddVertex(basePoint + distanceToCenter);
 
-					AddVertex(basePoint + distanceToCenter + Vector3.up * CeilingHeight, basePoint);
-					//_vertices.Add(basePoint + distanceToCenter + Vector3.up * CeilingHeight);
-					//_normals.Add(Vector3.down);
-					DrawLastNormal(Color.green);
+					AddVertex(basePoint + distanceToCenter + Vector3.up * CeilingHeight);
 
 
 					var averagePoint = AverageWicketLocation(newWicket);
@@ -170,13 +200,9 @@ public class PathRenderer : Singleton<PathRenderer>
 
 			}
 			var floorVertex = _vertices.Count;
-			_vertices.Add(intersectionCenter);
-			_normals.Add(Vector3.up);
-			DrawLastNormal(Color.blue);
+			AddVertex(intersectionCenter);
 			var ceilingVertex = _vertices.Count;
-			_vertices.Add(intersectionCenter + Vector3.up * CeilingHeight);
-			_normals.Add(Vector3.down);
-			DrawLastNormal(Color.magenta);
+			AddVertex(intersectionCenter + Vector3.up * CeilingHeight);
 
 			var orderedWickets = adjacentWickets.OrderBy(wicket =>
 			{
@@ -228,18 +254,29 @@ public class PathRenderer : Singleton<PathRenderer>
 
 		}
 
-		var mesh = new Mesh
-		{
-			vertices = _vertices.ToArray(),
-			triangles = _triangles.ToArray(),
-			//normals = _normals.ToArray(),
-			name = "Maze"
-		};
-		mesh.RecalculateNormals();
-		var normalsList = new List<Vector3>();
-		mesh.GetNormals(normalsList);
-		mesh.SetUVs(0, normalsList.ToArray());
-		GetComponent<MeshFilter>().mesh = mesh;
+		_wallsMesh.Generate(transform, Material);
+		_floorMesh.Generate(transform, Material);
+		_ceilingMesh.Generate(transform, Material);
+		/*
+				var mesh = new Mesh
+				{
+					vertices = _vertices.ToArray(),
+					triangles = _triangles.ToArray(),
+					name = "Maze"
+				};
+
+				var uvs = new List<Vector2>();
+
+				mesh.RecalculateBounds();
+				mesh.RecalculateNormals();
+				mesh.RecalculateTangents();
+				var bounds = mesh.bounds;
+				foreach (var vertex in _vertices)
+				{
+					uvs.Add((new Vector2(vertex.x / bounds.size.x, vertex.z / bounds.size.z) * 10f));
+				}
+				mesh.SetUVs(0, uvs.ToArray());
+				GetComponent<MeshFilter>().mesh = mesh;*/
 
 	}
 
@@ -297,28 +334,48 @@ public class PathRenderer : Singleton<PathRenderer>
 		colliderObject.transform.localScale = new Vector3(1f, 1f, distance);
 
 		colliderObject.transform.localEulerAngles = new Vector3(0f, angle, 0f);
-		colliderObject.SetActive(true);
-
-
-		
-		
+		colliderObject.SetActive(true);	
 		
 	}
 
 	private void SealWicket(Vector3 basePoint, Wicket wicket)
 	{
-		_triangles.AddRange(OrientedTriangle(basePoint, new int[]
+		var newMesh = new MeshGenerator("Wicket Seal");
+
+		foreach(var vertex in wicket.GetPoints)
+		{
+			newMesh.Add(_vertices[vertex]);
+		}
+		var worldTriangles = new List<int>();
+		worldTriangles.AddRange(OrientedTriangle(basePoint, new int[]
 		{
 			wicket[0],
 			wicket[1],
-			wicket[2]
+			wicket[3]
 		}));
-		_triangles.AddRange(OrientedTriangle(basePoint, new int[]
+		worldTriangles.AddRange(OrientedTriangle(basePoint, new int[]
 		{
 			wicket[1],
 			wicket[2],
 			wicket[3]
 		}));
+
+		var localTriangles = new List<int>();
+		foreach(var i in worldTriangles)
+		{
+			var index = 0;
+			foreach(var vertex in newMesh.Vertices)
+			{
+				if(vertex == _vertices[i])
+				{
+					localTriangles.Add(index);
+					break;
+				}
+				index++;
+			}
+		}
+		newMesh.Add(localTriangles);
+		newMesh.Generate(transform, Material);
 
 		AddCollider(wicket[0], wicket[3]);
 
@@ -328,37 +385,37 @@ public class PathRenderer : Singleton<PathRenderer>
 	{
 
 		AddCollider(wicket1[0], wicket2[3]);
-		_triangles.AddRange(OrientedTriangle(basePoint, new int[]
+		AddTriangle(OrientedTriangle(basePoint, new int[]
 		{
 			wicket1[0],
 			wicket2[3],
 			wicket1[1]
 		}));
-		_triangles.AddRange(OrientedTriangle(basePoint, new int[]
+		AddTriangle(OrientedTriangle(basePoint, new int[]
 		{
 			wicket2[2],
 			wicket1[1],
 			wicket2[3],
 		}));
-		_triangles.AddRange(OrientedTriangle(basePoint, new int[]
+		AddTriangle(OrientedTriangle(basePoint, new int[]
 		{
 			wicket1[1],
 			wicket2[2],
 			ceilingPoint
 		}));
-		_triangles.AddRange(OrientedTriangle(basePoint, new int[]
+		AddTriangle(OrientedTriangle(basePoint, new int[]
 		{
 			wicket1[0],
 			wicket2[3],
 			floorPoint
 		}));
-		_triangles.AddRange(OrientedTriangle(basePoint, new int[]
+		AddTriangle(OrientedTriangle(basePoint, new int[]
 		{
 			wicket1[1],
 			wicket1[2],
 			ceilingPoint
 		}));
-		_triangles.AddRange(OrientedTriangle(basePoint, new int[]
+		AddTriangle(OrientedTriangle(basePoint, new int[]
 		{
 			wicket1[0],
 			wicket1[3],
@@ -369,18 +426,6 @@ public class PathRenderer : Singleton<PathRenderer>
 
 	private List<int> OrientedTriangle(Vector3 basePoint, int[] triangle)
 	{
-		if (BothSides)
-		{
-			return new List<int>()
-			{
-				triangle[0],
-				triangle[2],
-				triangle[1],
-				triangle[0],
-				triangle[1],
-				triangle[2],
-			};
-		}
 		var plane = new Plane(_vertices[triangle[0]], _vertices[triangle[1]], _vertices[triangle[2]]);
 		if (plane.GetSide(basePoint + Vector3.up)){
 			return triangle.ToList();
@@ -404,11 +449,34 @@ public class PathRenderer : Singleton<PathRenderer>
 		return sum / 2f;
 	}
 
+	private void AddTriangle(List<int> triangle) 
+	{
+		if(triangle.Count == 0)
+		{
+			return;
+		}
+
+		var sameHeight = _vertices[triangle[0]].y;
+		for(var i = 1; i < triangle.Count; i++)
+		{
+			if (_vertices[triangle[i]].y != sameHeight)
+			{
+				_wallsMesh.Add(triangle);
+				return;
+			}
+		}
+		if(Mathf.Approximately(sameHeight, 0f))
+		{
+			_floorMesh.Add(triangle);
+		} else
+		{
+			_ceilingMesh.Add(triangle);
+		}
+	}
+
 
 	private void AddTriangles(Wicket wicket1, Wicket wicket2, bool flipped = false)
 	{
-		var triangles = new List<int>();
-
 		for(var i = 0; i < 4; i++)
 		{
 			var next = i + 1;
@@ -420,31 +488,17 @@ public class PathRenderer : Singleton<PathRenderer>
 			var i2 = flipped? 3 - i: i;
 			var next2 = flipped ? 3 - next : next;
 
-
-			triangles.Add(wicket2[next2]);
-			triangles.Add(wicket1[next]);
-			triangles.Add(wicket1[i]);
-
-
-			triangles.Add(wicket2[i2]);
-			triangles.Add(wicket2[next2]);
-			triangles.Add(wicket1[i]);
-
-			if (BothSides)
-			{
-				triangles.Add(wicket2[next2]);
-				triangles.Add(wicket1[i]);
-				triangles.Add(wicket1[next]);
-
-
-				triangles.Add(wicket2[i2]);
-				triangles.Add(wicket1[i]);
-				triangles.Add(wicket2[next2]);
-			}
-			
+			AddTriangle(new List<int> {
+				wicket2[next2],
+				wicket1[next],
+				wicket1[i],
+			});
+			AddTriangle(new List<int> {
+				wicket2[i2],
+				wicket2[next2],
+				wicket1[i],
+			});
 		};
-
-		_triangles.AddRange(triangles);
 
 		if (flipped)
 		{
@@ -467,25 +521,18 @@ public class PathRenderer : Singleton<PathRenderer>
 		foreach (var vertex in vertices)
 		{
 			indices.Add(_vertices.Count);
-			AddVertex(vertex, basePoint);
-			DrawLastNormal(Color.white);
+			AddVertex(vertex);
 		}
-		var index = 0;
-		if (distance == 0.5f)
-		{
-			index = 1;
-		}else if(distance > 0.5f)
-		{
-			index = 2;
-		}
-		return new Wicket(indices.ToArray(), index);
+		return new Wicket(indices.ToArray());
 
 	}
 
-	private void AddVertex(Vector3 vertex, Vector3 basePoint)
+	private void AddVertex(Vector3 vertex)
 	{
 		_vertices.Add(vertex);
-		_normals.Add((basePoint - vertex + Vector3.up).normalized);
+		_wallsMesh.Add(vertex);
+		_floorMesh.Add(vertex);
+		_ceilingMesh.Add(vertex);
 	}
 
 	private Vector3 Vector3Lerp(Vector3 start, Vector3 end, float distance)
@@ -516,8 +563,6 @@ public class Wicket
 {
 	protected int[] Points;
 
-	public int Index;
-	public int ConnectedCorner = -1;
 	public Vector3 Vector;
 
 	public Wicket(int[] points)
@@ -525,10 +570,8 @@ public class Wicket
 		Points = points;
 	}
 
-	public Wicket(int[] points, int index)
-	{
-		Points = points;
-	}
+
+	public IEnumerable<int> GetPoints => Points;
 
 	public static implicit operator int[](Wicket wicket) => wicket.Points;
 	public static implicit operator Wicket(int[] points) => new(points);
