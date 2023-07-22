@@ -2,14 +2,17 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using TMPro;
+using UnityEditor.Experimental.GraphView;
 using UnityEngine;
+using UnityEngine.AI;
 using UnityEngine.Android;
 
-public class Enemy : MonoBehaviour
+public class Enemy : Singleton<Enemy>
 {
 	[SerializeField] private float _runSpeed = 8f;
 
-	[SerializeField] private float _senseRadius = 20f;
+	[SerializeField] private float _sightRange = 20f;
+	[SerializeField] private float _smellRange = 50f;
 
 	public TextMeshProUGUI DebugText;
 	/*
@@ -47,14 +50,22 @@ public class Enemy : MonoBehaviour
 	private bool _playerInVision = false;
 	private Vector3 _cachedTarget;
 
+	private NavMeshAgent _agent;
+
 	public void Spawn()
 	{
+		_agent = GetComponent<NavMeshAgent>();
 		_currentNode = Maze.EndNode;
 		_lastNode = Maze.EndNode;
 		_targetNode = Maze.EndNode;
 		transform.position = _currentNode.Position + Vector3.up;
 		FindNewTarget();
-		_state = State.Wandering;
+	}
+
+	public void InformOfPosition(NodeAddress newAddress)
+	{
+		_currentNode = Maze.NodeMap[newAddress];
+		Debug.Log($"at {_currentNode.Address}");
 	}
 
 	private void Update()
@@ -65,19 +76,39 @@ public class Enemy : MonoBehaviour
 			return;
 		}
 
+		_playerInVision = false;
+		//_agent.autoBraking = true;
+		if (CanSeePlayer())
+		{
+			_state = State.Chasing;
+			_lastSensedPlayerPosition = Player.Position;
+			_cachedTarget = Player.Position;
+			_playerInVision = true;
+			//_agent.autoBraking = false;
+			_agent.SetDestination(_cachedTarget);
+		}
+
 		if (_state == State.Frustrated)
 		{
 			WaitInFrustration();
 			return;
 		}
 
-		MoveTowardsTarget();
-
-		if(DistanceToTarget <= 0.05f)
+		if(DistanceToTarget <= 0.1f)
 		{
 			OnTargetReached();
 		}
 
+	}
+
+	private bool CanSeePlayer()
+	{
+		if(Physics.Raycast(transform.position, (Player.Position - transform.position), out var hitInfo, _sightRange, LayerMask.NameToLayer("Interactables")))
+		{
+			return hitInfo.collider.gameObject.CompareTag("Player");
+		}
+
+		return false;
 	}
 
 	private void WaitInFrustration()
@@ -101,10 +132,11 @@ public class Enemy : MonoBehaviour
 
 	private void MoveTowardsTarget()
 	{
-
+		
 		_cachedTarget = TargetPosition();
 		var speed = _state == State.Chasing ? _runSpeed * 2f : _runSpeed;
-		transform.position += speed * Time.deltaTime * DirectionToTarget;
+		_agent.SetDestination(_cachedTarget);
+		//transform.position += speed * Time.deltaTime * DirectionToTarget;
 	}
 
 	private void OnTargetReached()
@@ -117,7 +149,7 @@ public class Enemy : MonoBehaviour
 					Debug.Log("YOU WERE CAUGHT");
 					return;
 				}
-				PrepareFrustration();
+				Frustrate();	// we lost the player
 				break;
 			case State.Hunting:
 			case State.Wandering:
@@ -129,33 +161,13 @@ public class Enemy : MonoBehaviour
 		
 	}
 
-	private void OnTriggerEnter(Collider collider)
-	{
-		if(collider.gameObject.CompareTag("Player"))
-		{
-			_state = State.Chasing;
-			Debug.Log("Enemy is CHASING");
-			_lastSensedPlayerPosition = Player.Position;
-			_playerInVision = true;
-		}
-	}
-
-	private void OnTriggerExit(Collider collider)
-	{
-		if (collider.gameObject.CompareTag("Player"))
-		{
-			// when switching from chasing to hunting, use wicket base points rather than intersections?
-			// really should still be "chasing" as long as player is sensed.
-
-			_playerInVision = false;;
-		}
-	}
-
 	private void OnDrawGizmos()
 	{
 		if(_state == State.Uninitialized) { return; }
+		
+		Debug.DrawLine(transform.position, transform.position + _sightRange * (Player.Position - transform.position).normalized, Color.red);
 		Debug.DrawLine(transform.position, _cachedTarget, Color.cyan);
-		DebugText.text = $"{_state}\ncanSee: {_playerInVision}\ncanSense: {DistanceToPlayer <= _senseRadius}";
+		DebugText.text = $"{_state}\ncanSee: {_playerInVision}\n{_agent.destination}";
 	}
 
 
@@ -168,10 +180,6 @@ public class Enemy : MonoBehaviour
 			case State.Hunting:
 				return _targetNode.Position;
 			case State.Chasing:
-				if (DistanceToPlayer <= _senseRadius)
-				{
-					_lastSensedPlayerPosition = Player.Position;
-				}
 				return _playerInVision ? Player.Position : _lastSensedPlayerPosition;
 			default:
 				break;
@@ -184,11 +192,10 @@ public class Enemy : MonoBehaviour
 		return new(_cachedTarget.x - transform.position.x, 0f, _cachedTarget.z - transform.position.z);
 	}
 	private float DistanceToTarget => VectorToTarget().magnitude;
-	private Vector3 DirectionToTarget => VectorToTarget().normalized;
 
 	private void FindNewTarget()
 	{
-		if (WithinHuntRange())
+		if (WithinHuntRange)
 		{
 			Debug.Log("enemy is HUNTING");
 			Hunt();
@@ -198,86 +205,44 @@ public class Enemy : MonoBehaviour
 		{
 			return;
 		}
+		if (_state == State.Hunting)
+		{
+			Frustrate();
+			return;
+		}
 		Wander();
 	}
 
-	private bool WithinHuntRange()
-	{
-		if (_state == State.Hunting)
-		{
-			PrepareFrustration();
-		}
-		if(DistanceToPlayer > _senseRadius)
-		{
-			return false;
-		}
-		_state = State.Hunting;
-		_lastSensedPlayerPosition = Player.Position;
-		return true;
-	}
-
-	private void PrepareFrustration()
+	private bool WithinHuntRange => DistanceToPlayer <= _smellRange;
+	private void Frustrate()
 	{
 		_state = State.Frustrated;
-		_frustrationTime = 5f;
+		_frustrationTime = 5f; // todo: make this scale based on how long the chase was
 	}
 
 	private void Hunt()
 	{
-		var allNodesInArea = new List<NodeAddress>();
-
-		// one of these is likely unnessecary. figure out which
-		// hmmm if we were chasing for a while, maybe we don't have the best option?
-		// need a GetNearestNodeToPosition method
-		allNodesInArea.AddRange(GetNodeNeighbors(_currentNode));
-		allNodesInArea.AddRange(GetNodeNeighbors(_lastNode));
-		allNodesInArea.AddRange(GetNodeNeighbors(_targetNode));
-
-		var nearestToPlayer = (_lastSensedPlayerPosition - transform.position).magnitude;
-		Node nearestOption = null;
-		foreach (var option in allNodesInArea)
-		{
-			var node = Maze.NodeMap[option];
-			var distanceToPlayer = (_lastSensedPlayerPosition - node.Position).magnitude;
-			if (distanceToPlayer < nearestToPlayer)
-			{
-				nearestToPlayer = distanceToPlayer;
-				nearestOption = node;
-			}
-		}
-		if (nearestOption != null)
-		{
-			_targetNode = nearestOption;
-			return;
-		}
+		// todo: animation delay while tries to find correct direction.
+		// todo: figure out which node is closer to the player
+		_state = State.Hunting;
+		_lastSensedPlayerPosition = Player.Position;
+		_cachedTarget = _lastSensedPlayerPosition;
+		_agent.SetDestination(_lastSensedPlayerPosition);
 	}
 
 	private void Wander()
 	{
-		_lastNode = _currentNode;
-		_currentNode = _targetNode;
-
-
-		var validOptions = GetNodeNeighbors(_currentNode).ToList();
-
-		if (validOptions.Count > 1)
+		if(!_currentNode.TryGetRandomTraversableNeighbor(out var targetNodeAddress, new List<NodeAddress> { _lastNode.Address }))
 		{
-			validOptions.Remove(_lastNode.Address);
-		}
-
-		var randomSelection = Random.Range(0, validOptions.Count);
-		_targetNode = Maze.NodeMap[validOptions[randomSelection]];
-	}
-
-	private IEnumerable<NodeAddress> GetNodeNeighbors(Node node)
-	{
-		foreach (var neighbor in node.Neighbors)
-		{
-			if (Maze.Paths.ContainsKey(new PathID(node.Address, neighbor)))
-			{
-				yield return neighbor;
+			if(!_currentNode.TryGetRandomTraversableNeighbor(out targetNodeAddress)){
+				throw new System.Exception("$Enemy's current node has no traversable neighbors {_currentNode}");
 			}
 		}
-	}
 
+		_state = State.Wandering;
+		Debug.Log($"target node {targetNodeAddress}");
+		_targetNode = Maze.NodeMap[targetNodeAddress];
+		_cachedTarget = _targetNode.Position;
+		_agent.SetDestination(_cachedTarget);
+	}
 }

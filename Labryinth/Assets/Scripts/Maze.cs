@@ -1,4 +1,6 @@
 ﻿using System.Collections.Generic;
+using System.Linq;
+using UnityEngine;
 
 public class Maze: Singleton<Maze>
 {
@@ -37,4 +39,11 @@ public class Maze: Singleton<Maze>
 
 	public readonly Dictionary<NodeAddress, Node> _nodeMap = new();
 	public readonly Dictionary<PathID, Path> _paths = new();
+
+	public static NodeAddress RandomNodeAddress()
+	{
+		var allNodes = NodeMap.Keys.ToArray();
+		var index = Random.Range(0, allNodes.Length);
+		return allNodes[index];
+	}
 }

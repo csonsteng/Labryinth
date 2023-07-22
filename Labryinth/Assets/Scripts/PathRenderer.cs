@@ -331,9 +331,9 @@ public class PathRenderer : Singleton<PathRenderer>
 		var distance = (point2 - point1).magnitude;
 		var colliderObject = Instantiate(ColliderTemplate, ColliderTemplate.transform.parent);
 		colliderObject.transform.localPosition = averagePoint;
-		colliderObject.transform.localScale = new Vector3(1f, 1f, distance);
+		colliderObject.transform.localScale = new Vector3(1f, distance, 1f);
 
-		colliderObject.transform.localEulerAngles = new Vector3(0f, angle, 0f);
+		colliderObject.transform.localEulerAngles = new Vector3(90f, angle, 0f);
 		colliderObject.SetActive(true);	
 		
 	}

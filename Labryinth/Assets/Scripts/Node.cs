@@ -1,4 +1,5 @@
 ﻿using System.Collections.Generic;
+using System.Net;
 using UnityEngine;
 
 public class Node
@@ -33,16 +34,10 @@ public class Node
 		}
 	}
 
-	public bool TryGetRandomNeighbor(List<NodeAddress> exclusionList, out NodeAddress address)
+	public bool TryGetRandomNeighbor(out NodeAddress address, List<NodeAddress> exclusionList = null)
 	{
-		var neighbors = new List<NodeAddress>();
-		foreach(var neighbor in Neighbors)
-		{
-			if (!exclusionList.Contains(neighbor))
-			{
-				neighbors.Add(neighbor);
-			}
-		}
+
+		var neighbors = GetNeighborsWithExclusion(exclusionList);
 		if (neighbors.Count == 0)
 		{
 			address = new NodeAddress(0, 0f);
@@ -52,6 +47,46 @@ public class Node
 		address = neighbors[index];
 		return true;
 	}
+
+	public bool TryGetRandomTraversableNeighbor(out NodeAddress address, List<NodeAddress> exclusionList = null)
+	{
+		var neighbors = GetNeighborsWithExclusion(exclusionList);
+		if (neighbors.Count == 0)
+		{
+			address = new NodeAddress(0, 0f);
+			return false;
+		}
+		var pathableNeighbors = new List<NodeAddress>();
+		foreach(var neighbor in neighbors)
+		{
+			if(Maze.Paths.ContainsKey(new PathID(Address, neighbor)))
+			{
+				pathableNeighbors.Add(neighbor);
+			}
+		}
+		if (pathableNeighbors.Count == 0)
+		{
+			address = new NodeAddress(0, 0f);
+			return false;
+		}
+		var index = Random.Range(0, pathableNeighbors.Count);
+		address = pathableNeighbors[index];
+		return true;
+	}
+
+	private List<NodeAddress> GetNeighborsWithExclusion(List<NodeAddress> exclusionList)
+	{
+		var neighbors = new List<NodeAddress>();
+		foreach (var neighbor in Neighbors)
+		{
+			if (exclusionList == null || !exclusionList.Contains(neighbor))
+			{
+				neighbors.Add(neighbor);
+			}
+		}
+		return neighbors;
+	}
+
 	public float X => CalculateX();
 
 	private float CalculateX()

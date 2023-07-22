@@ -27,7 +27,7 @@ public class MazeGenerator : Singleton<MazeGenerator>
 	{
 		Clear();
 		Generate();
-		//Draw();
+		Draw();
 	}
 
 	private void Clear()
@@ -132,11 +132,11 @@ public class MazeGenerator : Singleton<MazeGenerator>
 	{
 		FillNodeMap(_size);
 
-		Maze.StartNodeAddress = RandomNodeAddress();
-		Maze.EndNodeAddress = RandomNodeAddress();
+		Maze.StartNodeAddress = Maze.RandomNodeAddress();
+		Maze.EndNodeAddress = Maze.RandomNodeAddress();
 		while (Maze.EndNodeAddress.Equals(Maze.StartNodeAddress))
 		{
-			Maze.EndNodeAddress = RandomNodeAddress();
+			Maze.EndNodeAddress = Maze.RandomNodeAddress();
 		}
 
 		var visitedList = new List<NodeAddress>()
@@ -154,7 +154,7 @@ public class MazeGenerator : Singleton<MazeGenerator>
 		while (!currentStep.Address.Equals(Maze.EndNodeAddress) && attempts < maxAttempts)
 		{
 			attempts++;
-			if (!currentStep.TryGetRandomNeighbor(visitedList, out var randomNeighbor))
+			if (!currentStep.TryGetRandomNeighbor(out var randomNeighbor, visitedList))
 			{
 				var randomVisitedNode = Random.Range(0, visitedList.Count);
 				currentStep = NodeMap[visitedList[randomVisitedNode]];
@@ -210,7 +210,7 @@ public class MazeGenerator : Singleton<MazeGenerator>
 		{
 			var randomNodeAddress = Random.Range(0, visitedList.Count);
 			var randomNode = NodeMap[visitedList[randomNodeAddress]];
-			if (randomNode.TryGetRandomNeighbor(visitedList, out var node))
+			if (randomNode.TryGetRandomNeighbor(out var node, visitedList))
 			{
 				TryAddPath(randomNode.Address, node);
 				visitedList.Add(node);
@@ -244,6 +244,18 @@ public class MazeGenerator : Singleton<MazeGenerator>
 		_nodeObjectTemplate.SetActive(false);
 		_pathObjectTemplate.SetActive(false);
 
+		foreach(var node in NodeMap.Values)
+		{
+			foreach(var neighbor in node.Neighbors)
+			{
+				if(Paths.TryGetValue(new PathID(node.Address, neighbor), out _))
+				{
+					MakeNodeGameObject(node);
+					break;
+				}
+			}
+		}
+		
 		SetObjectMaterial(MakeNodeGameObject(NodeMap[Maze.StartNodeAddress]), _startMaterial);
 		SetObjectMaterial(MakeNodeGameObject(NodeMap[Maze.EndNodeAddress]), _endMaterial);
 
@@ -252,10 +264,11 @@ public class MazeGenerator : Singleton<MazeGenerator>
 	private GameObject MakeNodeGameObject(Node node)
 	{
 		var nodeObject = Instantiate(_nodeObjectTemplate, _nodeObjectTemplate.transform.parent);
+		nodeObject.GetComponent<NodeMarker>().Address = node.Address;
 		nodeObject.name = node.Address.ToString();
 		node.GameObject = nodeObject;
 		nodeObject.transform.position = node.Position;
-		nodeObject.transform.localScale = _scale * Vector3.one;
+		nodeObject.transform.localScale = PathRenderer.Instance.WicketWidth * Vector3.one;
 		nodeObject.SetActive(true);
 		return nodeObject;
 	}
@@ -282,10 +295,5 @@ public class MazeGenerator : Singleton<MazeGenerator>
 		meshRenderer.material = material;
 	}
 
-	public NodeAddress RandomNodeAddress()
-	{
-		var allNodes = NodeMap.Keys.ToArray();
-		var index = Random.Range(0, allNodes.Length);
-		return allNodes[index];
-	}
+
 }

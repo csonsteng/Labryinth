@@ -36,7 +36,7 @@ public class Player : Singleton<Player>
 	}
 	private void Update()
 	{
-		if(Input.GetKeyDown(KeyCode.Escape)) { Time.timeScale = 0f; }
+		if (Input.GetKeyDown(KeyCode.Escape)) { }//Time.timeScale = 0f; }
 		CheckInteractions();
 
 		UpdatePosition();
