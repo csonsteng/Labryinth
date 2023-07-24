@@ -56,8 +56,10 @@
     <Analyzer Include="C:\Program Files\Microsoft Visual Studio\2022\Community\Common7\IDE\Extensions\Microsoft\Visual Studio Tools for Unity\Analyzers\Microsoft.Unity.Analyzers.dll" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Assets\Scripts\NodeMarker.cs" />
     <Compile Include="Assets\Scripts\Node.cs" />
     <Compile Include="Assets\Scripts\Vector3Extensions.cs" />
+    <Compile Include="Assets\Scripts\UVDebugger.cs" />
     <Compile Include="Assets\Scripts\CanvasBillboard.cs" />
     <Compile Include="Assets\Scripts\GameManager.cs" />
     <Compile Include="Assets\Scripts\InteractableManager.cs" />
@@ -76,7 +78,7 @@
     <Compile Include="Assets\Scripts\PathRenderer.cs" />
     <Compile Include="Assets\Scripts\Settings.cs" />
     <Compile Include="Assets\Scripts\PathID.cs" />
-    <Compile Include="Assets\Scripts\NodeMarker.cs" />
+    <Compile Include="Assets\Scripts\Pathfinder.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="Assets\TextMesh Pro\Shaders\TMPro.cginc" />

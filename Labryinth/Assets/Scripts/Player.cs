@@ -16,10 +16,13 @@ public class Player : Singleton<Player>
 	private float StrafeSpeed => _settings.StrafeSpeed;
 
 	public static Vector3 Position => Instance.gameObject.transform.position;
-	public static Vector3 FacingDirection => Instance._facingDirection; 
+	public static Vector3 FacingDirection => Instance._facingDirection;
+
+	public static NodeAddress LastNodeAddress => Instance._currentNode;
 
 	private bool _canInteract = false;
 	private Vector3 _facingDirection;
+	private NodeAddress _currentNode;
 
 	private void Awake()
 	{
@@ -28,11 +31,17 @@ public class Player : Singleton<Player>
 	public void Initialize()
 	{
         transform.position = Maze.StartNode.Position + new Vector3(0f, 1f, 0f);
+		_currentNode = Maze.StartNode.Address;
         transform.localEulerAngles = Vector3.zero;
 		_characterCamera.transform.localEulerAngles = Vector3.zero;
 		_settings = Settings.Instance.PlayerSettings;
         gameObject.SetActive(true);
 		_canInteract = true;
+	}
+
+	public void InformOfPosition(NodeAddress newAddress)
+	{
+		_currentNode = newAddress;
 	}
 	private void Update()
 	{
@@ -71,11 +80,10 @@ public class Player : Singleton<Player>
 		var forwardSpeed = WalkSpeed * (running ? RunMultiplier : 1f);
 		var strafeSpeed = StrafeSpeed * (running ? RunMultiplier : 1f);
 
-		var localMoveVector = new Vector3(strafeMovement * strafeSpeed, 0f, forwardMovement * forwardSpeed) * Time.deltaTime;
+		var localMoveVector = new Vector3(strafeMovement * strafeSpeed, 1f - Position.y, forwardMovement * forwardSpeed) * Time.deltaTime;
 		var convertedMoveVector = Quaternion.Euler(transform.localEulerAngles) * localMoveVector;
 
 		_controller.Move(convertedMoveVector);
-
 	}
 	private void UpdateCameras()
 	{

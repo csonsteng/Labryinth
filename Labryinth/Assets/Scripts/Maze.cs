@@ -33,12 +33,20 @@ public class Maze: Singleton<Maze>
 	}
 
 
-	public NodeAddress _startNode;
-	public NodeAddress _endNode;
+	private NodeAddress _startNode;
+	private NodeAddress _endNode;
 
+	private readonly Dictionary<NodeAddress, Node> _nodeMap = new();
+	private readonly Dictionary<PathID, Path> _paths = new();
 
-	public readonly Dictionary<NodeAddress, Node> _nodeMap = new();
-	public readonly Dictionary<PathID, Path> _paths = new();
+	private Pathfinder _pathFinder;
+
+	public void CreatePathfinder()
+	{
+		_pathFinder = new Pathfinder();
+	}
+
+	public bool TryFindPath(NodeAddress startAddress, NodeAddress endAddress, out List<NodeAddress> result) => _pathFinder.TryFindPath(startAddress, endAddress, out result);
 
 	public static NodeAddress RandomNodeAddress()
 	{

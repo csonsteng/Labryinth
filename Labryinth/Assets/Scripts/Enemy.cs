@@ -6,11 +6,10 @@ using UnityEditor.Experimental.GraphView;
 using UnityEngine;
 using UnityEngine.AI;
 using UnityEngine.Android;
+using UnityEngine.UIElements;
 
 public class Enemy : Singleton<Enemy>
 {
-	[SerializeField] private float _runSpeed = 8f;
-
 	[SerializeField] private float _sightRange = 20f;
 	[SerializeField] private float _smellRange = 50f;
 
@@ -44,13 +43,14 @@ public class Enemy : Singleton<Enemy>
 	private Node _lastNode;
 	private Node _targetNode;
 
-	private Vector3 _lastSensedPlayerPosition;
 	private float _frustrationTime = 5f;
 
 	private bool _playerInVision = false;
 	private Vector3 _cachedTarget;
 
 	private NavMeshAgent _agent;
+
+	private List<NodeAddress> _huntPath = new();
 
 	public void Spawn()
 	{
@@ -65,7 +65,6 @@ public class Enemy : Singleton<Enemy>
 	public void InformOfPosition(NodeAddress newAddress)
 	{
 		_currentNode = Maze.NodeMap[newAddress];
-		Debug.Log($"at {_currentNode.Address}");
 	}
 
 	private void Update()
@@ -77,28 +76,22 @@ public class Enemy : Singleton<Enemy>
 		}
 
 		_playerInVision = false;
-		//_agent.autoBraking = true;
-		if (CanSeePlayer())
+
+		if (CanSeePlayer())	// if we can see the player. chase regardless what else is happening
 		{
-			_state = State.Chasing;
-			_lastSensedPlayerPosition = Player.Position;
-			_cachedTarget = Player.Position;
-			_playerInVision = true;
-			//_agent.autoBraking = false;
-			_agent.SetDestination(_cachedTarget);
+			Chase();
 		}
 
-		if (_state == State.Frustrated)
+		if (_state == State.Frustrated)	// frustration delay
 		{
 			WaitInFrustration();
 			return;
 		}
 
-		if(DistanceToTarget <= 0.1f)
+		if(DistanceToTarget <=2.5f)
 		{
 			OnTargetReached();
 		}
-
 	}
 
 	private bool CanSeePlayer()
@@ -107,17 +100,19 @@ public class Enemy : Singleton<Enemy>
 		{
 			return hitInfo.collider.gameObject.CompareTag("Player");
 		}
-
 		return false;
+	}
+
+	private void Chase()
+	{
+		_state = State.Chasing;
+		_cachedTarget = Player.Position;
+		_playerInVision = true;
+		_agent.SetDestination(_cachedTarget);
 	}
 
 	private void WaitInFrustration()
 	{
-		if (_frustrationTime == 5.0f)
-		{
-			Debug.Log("Enemy is FRUSTRATED");
-		}
-
 		_frustrationTime -= Time.deltaTime;
 		if (_frustrationTime > 0f)
 		{
@@ -125,18 +120,6 @@ public class Enemy : Singleton<Enemy>
 		};
 
 		_state = State.Wandering;
-		Debug.Log("Enemy is WANDERING");
-		// todo: find current nodes close to last sensed player target position
-
-	}
-
-	private void MoveTowardsTarget()
-	{
-		
-		_cachedTarget = TargetPosition();
-		var speed = _state == State.Chasing ? _runSpeed * 2f : _runSpeed;
-		_agent.SetDestination(_cachedTarget);
-		//transform.position += speed * Time.deltaTime * DirectionToTarget;
 	}
 
 	private void OnTargetReached()
@@ -149,7 +132,7 @@ public class Enemy : Singleton<Enemy>
 					Debug.Log("YOU WERE CAUGHT");
 					return;
 				}
-				Frustrate();	// we lost the player
+				Frustrate();	// we lost the player (should actually hunt first here)
 				break;
 			case State.Hunting:
 			case State.Wandering:
@@ -167,25 +150,10 @@ public class Enemy : Singleton<Enemy>
 		
 		Debug.DrawLine(transform.position, transform.position + _sightRange * (Player.Position - transform.position).normalized, Color.red);
 		Debug.DrawLine(transform.position, _cachedTarget, Color.cyan);
-		DebugText.text = $"{_state}\ncanSee: {_playerInVision}\n{_agent.destination}";
+		Gizmos.DrawWireSphere(transform.position, _smellRange);
+		DebugText.text = $"{_state}\ncanSee: {_playerInVision}\ndistanceToDestination: {DistanceToTarget.ToString("0.0")}";
 	}
 
-
-	private Vector3 TargetPosition()
-	{
-		switch (_state)
-		{
-			case State.Wandering:
-			case State.Frustrated:
-			case State.Hunting:
-				return _targetNode.Position;
-			case State.Chasing:
-				return _playerInVision ? Player.Position : _lastSensedPlayerPosition;
-			default:
-				break;
-		}
-		throw new System.ArgumentException($"Invalid Enemy State {_state}");
-	}
 	private float DistanceToPlayer => (Player.Position - transform.position).magnitude;
 	private Vector3 VectorToTarget()
 	{
@@ -197,7 +165,6 @@ public class Enemy : Singleton<Enemy>
 	{
 		if (WithinHuntRange)
 		{
-			Debug.Log("enemy is HUNTING");
 			Hunt();
 			return;
 		}
@@ -207,13 +174,16 @@ public class Enemy : Singleton<Enemy>
 		}
 		if (_state == State.Hunting)
 		{
-			Frustrate();
+			Frustrate();	// if we finished a hunt without finding the player, we are frustrated.
 			return;
 		}
 		Wander();
 	}
 
-	private bool WithinHuntRange => DistanceToPlayer <= _smellRange;
+	/// <summary>
+	/// We can smell the player, or have not yet finished our last hunt
+	/// </summary>
+	private bool WithinHuntRange => DistanceToPlayer <= _smellRange	|| _huntPath.Count > 0;
 	private void Frustrate()
 	{
 		_state = State.Frustrated;
@@ -223,11 +193,28 @@ public class Enemy : Singleton<Enemy>
 	private void Hunt()
 	{
 		// todo: animation delay while tries to find correct direction.
-		// todo: figure out which node is closer to the player
 		_state = State.Hunting;
-		_lastSensedPlayerPosition = Player.Position;
-		_cachedTarget = _lastSensedPlayerPosition;
-		_agent.SetDestination(_lastSensedPlayerPosition);
+
+		if(DistanceToPlayer > _smellRange)	// if we can smell the player, we want to update our path. otherwise keep the sme hunt
+		{
+			TargetNextHuntPathPoint();
+			return;
+		}
+
+		if(!Maze.Instance.TryFindPath(_currentNode.Address, Player.LastNodeAddress, out _huntPath))
+		{
+			throw new System.Exception($"Cannot find path from {_currentNode.Address} to {Player.LastNodeAddress}");
+		}
+
+		TargetNextHuntPathPoint();
+	}
+
+	private void TargetNextHuntPathPoint()
+	{
+		_lastNode = _currentNode;
+		_cachedTarget = Maze.NodeMap[_huntPath[0]].Position;
+		_huntPath.RemoveAt(0);
+		_agent.SetDestination(_cachedTarget);
 	}
 
 	private void Wander()
@@ -238,9 +225,8 @@ public class Enemy : Singleton<Enemy>
 				throw new System.Exception("$Enemy's current node has no traversable neighbors {_currentNode}");
 			}
 		}
-
+		_lastNode = _currentNode;
 		_state = State.Wandering;
-		Debug.Log($"target node {targetNodeAddress}");
 		_targetNode = Maze.NodeMap[targetNodeAddress];
 		_cachedTarget = _targetNode.Position;
 		_agent.SetDestination(_cachedTarget);

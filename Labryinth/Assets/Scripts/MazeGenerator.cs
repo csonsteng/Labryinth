@@ -18,6 +18,8 @@ public class MazeGenerator : Singleton<MazeGenerator>
 	[SerializeField] private Material _endMaterial;
 
 
+	public int Size => _size;
+	public float Scale => _scale;
 
 	private Dictionary<NodeAddress, Node> NodeMap => Maze.NodeMap;
 	private Dictionary<PathID, Path> Paths => Maze.Paths;
@@ -27,7 +29,8 @@ public class MazeGenerator : Singleton<MazeGenerator>
 	{
 		Clear();
 		Generate();
-		Draw();
+		CreateNodeMarkers();
+		Maze.Instance.CreatePathfinder();
 	}
 
 	private void Clear()
@@ -239,7 +242,7 @@ public class MazeGenerator : Singleton<MazeGenerator>
 		Logger.Log($"Start: {Maze.StartNodeAddress}, End: {Maze.EndNodeAddress}");
 	}
 
-	private void Draw()
+	private void CreateNodeMarkers()
 	{
 		_nodeObjectTemplate.SetActive(false);
 		_pathObjectTemplate.SetActive(false);

@@ -1,7 +1,7 @@
 using System;
-using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text;
 using UnityEngine;
 
 public class PathRenderer : Singleton<PathRenderer>
@@ -20,26 +20,46 @@ public class PathRenderer : Singleton<PathRenderer>
 	 * 
 	 * One in the middle, and one near each edge
 	 * And then at each node, i need to connect all of the adjacent wickets
-	 * 
-	 * Lets make our vertices first, and then we'll figure out how we want to draw our triangles
 	 */
 
-	// todo: break out to multiple meshs so materials sit better
+	private List<Vector3> _dummyPositions = new();
+	private List<Wicket> _dummyWickets = new();
 
 	private class MeshGenerator
 	{
-		private readonly List<Vector3> _vertices = new List<Vector3>();
-		private readonly List<int> _triangles = new List<int>();
-		private readonly List<int> _reverseTriangles = new List<int>();
+		private readonly List<Vector3> _vertices = new();
+		private readonly List<int> _triangles = new();
+		private readonly List<int> _reverseTriangles = new();
 		private readonly string _name;
-		public MeshGenerator(string name)
+
+		private UVType _uvType;
+		private List<Vector3> _neighborVertices = new();
+
+		public enum UVType
+		{
+			TriPlanar,
+			XZPlane,
+			NotXZPlane,
+			SubTri
+		}
+
+		public MeshGenerator(string name, UVType uvType)
 		{
 			_name = name;
+			_uvType = uvType;
+		}
+
+		public MeshGenerator(string name, List<Vector3> neighborVertices)
+		{
+			_name = name;
+			_uvType = UVType.SubTri;
+			_neighborVertices = neighborVertices;
 		}
 
 		public IEnumerable<Vector3> Vertices => _vertices;
 
 		public void Add(Vector3 vertex) => _vertices.Add(vertex);
+		public void Add(List<Vector3> vertices) => _vertices.AddRange(vertices);
 		public void Add(List<int> indices)
 		{
 			_triangles.AddRange(indices);
@@ -52,27 +72,48 @@ public class PathRenderer : Singleton<PathRenderer>
 		public void Generate(Transform parentTransform, Material material)
 		{
 			Generate(parentTransform, material, _triangles);
-			Generate(parentTransform, material, _reverseTriangles, "Reverse_");
+			//Generate(parentTransform, material, _reverseTriangles, "Reverse_");
 		}
 
 		private void Generate(Transform parentTransform, Material material, List<int> triangles, string namePrefix = "")
 		{
+			if (_uvType == UVType.TriPlanar)
+			{
+				BreakOutSubTris(parentTransform, material, triangles);
+				return;
+			}
 
 			var meshObject = new GameObject($"{namePrefix}{_name}_Mesh", new Type[]
-			{
+{
 				typeof(MeshFilter),
 				typeof(MeshRenderer),
-			});
+				//typeof(UVDebugger)
+});
 			meshObject.transform.parent = parentTransform;
 			meshObject.transform.localScale = Vector3.one;
 			meshObject.transform.localPosition = Vector3.zero;
 			meshObject.transform.eulerAngles = Vector3.zero;
 
+			var vertices = new List<Vector3>();
+			var vertexMapping = new Dictionary<int, int>();
+			var tris = new List<int>();
+
+			foreach (var tri in triangles)
+			{
+				if(!vertexMapping.TryGetValue(tri, out var newVertexValue))
+				{
+					newVertexValue = vertices.Count;
+					vertices.Add(_vertices[tri]);
+					vertexMapping[tri] = newVertexValue;
+				}
+				tris.Add(newVertexValue);
+			}
+
 			var mesh = new Mesh
 			{
-				vertices = _vertices.ToArray(),
-				triangles = triangles.ToArray(),
-				name = "Maze"
+				vertices = vertices.ToArray(),
+				triangles = tris.ToArray(),
+				name = $"{_name}"
 			};
 
 			var uvs = new List<Vector2>();
@@ -80,14 +121,110 @@ public class PathRenderer : Singleton<PathRenderer>
 			mesh.RecalculateBounds();
 			mesh.RecalculateNormals();
 			mesh.RecalculateTangents();
-			var bounds = mesh.bounds;
-			foreach (var vertex in _vertices)
+			var bounds = mesh.bounds.size;
+
+			switch (_uvType)
 			{
-				uvs.Add((new Vector2(vertex.x / bounds.size.x, vertex.z / bounds.size.z)) * 10f);
+				case UVType.XZPlane:
+					foreach (var vertex in vertices)
+					{
+						uvs.Add(0.1f * MazeGenerator.Instance.Scale * MazeGenerator.Instance.Size * new Vector2(vertex.x / bounds.x, vertex.z / bounds.z));
+					}
+					break;
+				case UVType.NotXZPlane:
+					if(bounds.x > bounds.z)
+					{
+						foreach (var vertex in vertices)
+						{
+							uvs.Add(0.5f * new Vector2(vertex.x / bounds.x, vertex.y / bounds.y));
+						}
+					}
+					else
+					{
+						foreach (var vertex in vertices)
+						{
+							uvs.Add(0.5f * new Vector2(vertex.z / bounds.z, vertex.y / bounds.y));
+						}
+					}
+					break;
+				case UVType.SubTri:
+					uvs = GetSubTriUVs();
+					
+					break;
 			}
+
 			mesh.SetUVs(0, uvs.ToArray());
 			meshObject.GetComponent<MeshFilter>().mesh = mesh;
-			meshObject.GetComponent<MeshRenderer>().material = material;
+			meshObject.GetComponent<MeshRenderer>().material = new Material(material);
+		}
+
+		private void BreakOutSubTris(Transform parentTransform, Material material, List<int> triangles)
+		{
+			for (var i = 0; i < triangles.Count; i += 3)
+			{
+				var pts = new List<int>() {
+					triangles[i],
+					triangles[i + 1],
+					triangles[i + 2],
+					};
+
+				var subMesh = new MeshGenerator(new StringBuilder().AppendJoin("-", pts).ToString(), UVType.SubTri);
+				subMesh.Add(new List<int>() { 0, 1, 2 });
+				foreach (var pt in pts)
+				{
+					subMesh.Add(_vertices[pt]);
+
+				}
+				subMesh.Generate(parentTransform, material);
+			}
+		}
+
+		private List<Vector2> GetSubTriUVs()
+		{
+			var plane = new Plane(_vertices[0], _vertices[1], _vertices[2]);
+			var center = (_vertices[0] + _vertices[1] + _vertices[2]) / 3;
+			plane.Translate(-center);
+			var normal = plane.normal;
+
+			var u = Vector3.Cross(normal, new Vector3(UnityEngine.Random.Range(-1f, 1f), UnityEngine.Random.Range(-1f, 1f), UnityEngine.Random.Range(-1f, 1f))).normalized;
+			var v = Vector3.Cross(normal, u).normalized;
+
+			var mins = new Vector2(float.MaxValue, float.MaxValue);
+			var maxes = new Vector2(float.MinValue, float.MinValue);
+
+			var unScaledUVs = new List<Vector2>();
+			foreach (var vertex in _vertices)
+			{
+				var vectorToCenter = vertex - center;
+
+				var uComponent = Vector3.Dot(vectorToCenter, u);
+				var vComponent = Vector3.Dot(vectorToCenter, v);
+
+				if (uComponent < mins.x)
+				{
+					mins.x = uComponent;
+				}
+				if (uComponent > maxes.x)
+				{
+					maxes.x = uComponent;
+				}
+				if (vComponent < mins.y)
+				{
+					mins.y = vComponent;
+				}
+				if (vComponent > maxes.y)
+				{
+					maxes.y = vComponent;
+				}
+				unScaledUVs.Add(new Vector2(uComponent, vComponent));
+			}
+
+			var uvs = new List<Vector2>();
+			foreach (var uv in unScaledUVs)
+			{
+				uvs.Add(new Vector2((uv.x - mins.x) / (maxes.x - mins.x), (uv.y - mins.y) / (maxes.y - mins.y)));
+			}
+			return uvs;
 		}
 	}
 
@@ -95,22 +232,21 @@ public class PathRenderer : Singleton<PathRenderer>
 	private MeshGenerator _wallsMesh;
 	private MeshGenerator _ceilingMesh;
 
-	private List<MeshGenerator> _additionalMeshes = new List<MeshGenerator>();
+	private List<Vector3> _vertices = new();
 
-	private List<Vector3> _vertices = new List<Vector3>();
-
-	public float CeilingHeight = 5f;
-	public float WicketWidth = 4f;
+	public float CeilingHeight = 6f;
+	public float WicketWidth = 7f;
 
 	public GameObject ColliderTemplate;
 	public Material Material;
 
 	public void Generate()
 	{
-		_floorMesh = new MeshGenerator("Floor");
-		_wallsMesh = new MeshGenerator("Walls");
-		_ceilingMesh = new MeshGenerator("Ceiling");
+		_floorMesh = new MeshGenerator("Floor", MeshGenerator.UVType.XZPlane);
+		_wallsMesh = new MeshGenerator("Walls", MeshGenerator.UVType.TriPlanar);
+		_ceilingMesh = new MeshGenerator("Ceiling", MeshGenerator.UVType.XZPlane);
 		_vertices = new List<Vector3>();
+
 
 		foreach ((var currentNodeAddress, var currentNode) in Maze.NodeMap)
 		{
@@ -118,19 +254,16 @@ public class PathRenderer : Singleton<PathRenderer>
 
 			foreach (var neighborAddress in currentNode.Neighbors)
 			{
-				var neighborNode = Maze.NodeMap[neighborAddress];
 				var pathID = new PathID(currentNodeAddress, neighborAddress);
 
-
-
-				if (Maze.Paths.TryGetValue(pathID, out var path))
+				if (Maze.Paths.TryGetValue(pathID, out _))
 				{
 					// Make the closest wicket at each intersection
+					var neighborNode = Maze.NodeMap[neighborAddress];
 					var wicket = MakeWicket(currentNode.Position, neighborNode.Position, 0.22f);
 					currentNode.Wickets[neighborAddress] = wicket;
 					adjacentWickets.Add(wicket);
 				}
-
 			}
 
 			if(adjacentWickets.Count == 0)
@@ -149,7 +282,20 @@ public class PathRenderer : Singleton<PathRenderer>
 				currentNode.Wickets[currentNode.Address] = wicket;
 				adjacentWickets.Add(wicket);
 
-				SealWicket(basePoint, adjacentWickets[1]);
+				SealWicket(basePoint, adjacentWickets[1]); 
+			}
+
+			if (adjacentWickets.Count == 3 && currentNodeAddress.Radius == MazeGenerator.Instance.Size) // for outer edge 3 way intersections add a sealed outer facing wicket
+			{
+				var outerAddress = new NodeAddress(currentNodeAddress.Radius + 1, currentNodeAddress.Theta);
+				var outerNode = new Node(outerAddress);
+				outerNode.SetWorldPosition(MazeGenerator.Instance.Scale);
+
+				var wicket = MakeWicket(currentNode.Position, outerNode.Position, 0.22f);
+				currentNode.Wickets[outerAddress] = wicket;
+
+				adjacentWickets.Add(wicket);
+				SealWicket(basePoint, wicket);
 			}
 
 			var intersectionCenter = Vector3.zero;
@@ -160,11 +306,11 @@ public class PathRenderer : Singleton<PathRenderer>
 			}
 
 			intersectionCenter /= adjacentWickets.Count;
-			
+
 
 			if (adjacentWickets.Count == 2)
 			{
-				foreach(var wicket in adjacentWickets)
+				foreach (var wicket in adjacentWickets)
 				{
 					wicket.Vector = AverageWicketLocation(wicket) - basePoint;
 				}
@@ -175,30 +321,19 @@ public class PathRenderer : Singleton<PathRenderer>
 				if (twoWicketAngle <= 150)
 				{
 					var distanceToCenter = basePoint - intersectionCenter;
-					var newWicket = new Wicket(new int[]
-					{
-						_vertices.Count,
-						_vertices.Count+1,
-						_vertices.Count+1,
-						_vertices.Count
-					});
-
-					AddVertex(basePoint + distanceToCenter);
-
-					AddVertex(basePoint + distanceToCenter + Vector3.up * CeilingHeight);
-
-
-					var averagePoint = AverageWicketLocation(newWicket);
-					newWicket.Vector = averagePoint - basePoint;
+					var newWicket = MakeWicket(basePoint, basePoint + distanceToCenter, 1f);
 
 					intersectionCenter *= adjacentWickets.Count;
 					intersectionCenter += AverageWicketLocation(newWicket);
 
 					adjacentWickets.Add(newWicket);
 					intersectionCenter /= adjacentWickets.Count;
+
+					SealWicket(basePoint, newWicket);
 				}
 
 			}
+			
 			var floorVertex = _vertices.Count;
 			AddVertex(intersectionCenter);
 			var ceilingVertex = _vertices.Count;
@@ -278,8 +413,7 @@ public class PathRenderer : Singleton<PathRenderer>
 				mesh.SetUVs(0, uvs.ToArray());
 				GetComponent<MeshFilter>().mesh = mesh;*/
 
-	}
-
+				}
 
 	private struct WicketConnection
 	{
@@ -340,7 +474,12 @@ public class PathRenderer : Singleton<PathRenderer>
 
 	private void SealWicket(Vector3 basePoint, Wicket wicket)
 	{
-		var newMesh = new MeshGenerator("Wicket Seal");
+
+		var averagePoint = AverageWicketLocation(wicket);
+		_dummyPositions.Add(averagePoint);
+
+		_dummyWickets.Add(wicket);
+		var newMesh = new MeshGenerator($"Wicket Seal {_dummyWickets.Count - 1}", MeshGenerator.UVType.NotXZPlane);
 
 		foreach(var vertex in wicket.GetPoints)
 		{
@@ -465,6 +604,8 @@ public class PathRenderer : Singleton<PathRenderer>
 				return;
 			}
 		}
+
+		// if the y component of all vertices are identical, it's a ceiling or a floor
 		if(Mathf.Approximately(sameHeight, 0f))
 		{
 			_floorMesh.Add(triangle);
@@ -549,10 +690,10 @@ public class PathRenderer : Singleton<PathRenderer>
 		var perpindicular = basePoint.PerpindicularTo(normal);
 		var vertices = new List<Vector3>()
 		{
-			basePoint + perpindicular*WicketWidth,
-			basePoint + perpindicular + Vector3.up*CeilingHeight,
-			basePoint - perpindicular + Vector3.up*CeilingHeight,
-			basePoint - perpindicular*WicketWidth,
+			basePoint + perpindicular * (WicketWidth + UnityEngine.Random.Range(-0.5f, 0.5f)),
+			basePoint + perpindicular * (0.7f * WicketWidth + UnityEngine.Random.Range(-0.5f, 0.5f)) + Vector3.up*(CeilingHeight+ UnityEngine.Random.Range(-0.5f, 0.5f)),
+			basePoint - perpindicular * (WicketWidth + UnityEngine.Random.Range(-0.5f, 0.5f)) + Vector3.up*(CeilingHeight+ UnityEngine.Random.Range(-0.5f, 0.5f)),
+			basePoint - perpindicular * (0.7f * WicketWidth + UnityEngine.Random.Range(-0.5f, 0.5f)),
 		};
 		return vertices;
 	}

@@ -22,6 +22,10 @@ public class Node
 	{
 		Address = new NodeAddress(radius, theta);
 	}
+	public Node(NodeAddress address)
+	{
+		Address = address;
+	}
 
 	public bool IsNeighbor(NodeAddress node) => Neighbors.Contains(node);
 

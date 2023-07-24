@@ -1,4 +1,7 @@
-﻿public struct NodeAddress
+﻿using System;
+using UnityEngine;
+
+public struct NodeAddress
 {
 	public int Radius;
 	public float Theta;
@@ -10,8 +13,6 @@
 		Radius = radius;
 		Theta = theta;
 	}
-
-
 
 	public override string ToString()
 	{
@@ -31,6 +32,11 @@
 		}
 
 		return Theta > otherAddress.Theta;
+	}
+
+	public float DistanceTo(NodeAddress otherAddress)
+	{
+		return Mathf.Sqrt(Mathf.Pow(Radius, 2) + Mathf.Pow(otherAddress.Radius, 2) - 2 * Radius * otherAddress.Radius * Mathf.Cos((otherAddress.Theta - Theta) * Mathf.Deg2Rad));
 	}
 
 }
