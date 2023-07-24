@@ -39,21 +39,13 @@ public class PathRenderer : Singleton<PathRenderer>
 		{
 			TriPlanar,
 			XZPlane,
-			NotXZPlane,
-			SubTri
+			NotXZPlane
 		}
 
 		public MeshGenerator(string name, UVType uvType)
 		{
 			_name = name;
 			_uvType = uvType;
-		}
-
-		public MeshGenerator(string name, List<Vector3> neighborVertices)
-		{
-			_name = name;
-			_uvType = UVType.SubTri;
-			_neighborVertices = neighborVertices;
 		}
 
 		public IEnumerable<Vector3> Vertices => _vertices;
@@ -77,12 +69,6 @@ public class PathRenderer : Singleton<PathRenderer>
 
 		private void Generate(Transform parentTransform, Material material, List<int> triangles, string namePrefix = "")
 		{
-			if (_uvType == UVType.TriPlanar)
-			{
-				BreakOutSubTris(parentTransform, material, triangles);
-				return;
-			}
-
 			var meshObject = new GameObject($"{namePrefix}{_name}_Mesh", new Type[]
 {
 				typeof(MeshFilter),
@@ -109,14 +95,17 @@ public class PathRenderer : Singleton<PathRenderer>
 				tris.Add(newVertexValue);
 			}
 
+			var uvs = new List<Vector2>();
+			if (_uvType == UVType.TriPlanar)
+			{
+				BreakOutSubTris(tris, vertices, out vertices, out tris, out uvs);
+			}
 			var mesh = new Mesh
 			{
 				vertices = vertices.ToArray(),
 				triangles = tris.ToArray(),
 				name = $"{_name}"
 			};
-
-			var uvs = new List<Vector2>();
 
 			mesh.RecalculateBounds();
 			mesh.RecalculateNormals();
@@ -147,10 +136,6 @@ public class PathRenderer : Singleton<PathRenderer>
 						}
 					}
 					break;
-				case UVType.SubTri:
-					uvs = GetSubTriUVs();
-					
-					break;
 			}
 
 			mesh.SetUVs(0, uvs.ToArray());
@@ -158,73 +143,69 @@ public class PathRenderer : Singleton<PathRenderer>
 			meshObject.GetComponent<MeshRenderer>().material = new Material(material);
 		}
 
-		private void BreakOutSubTris(Transform parentTransform, Material material, List<int> triangles)
+		private void BreakOutSubTris(List<int> triangles, List<Vector3> _vertices, out List<Vector3> vertices, out List<int> outTriangles, out List<Vector2> uvs)
 		{
+			vertices = new List<Vector3>();
+			uvs = new List<Vector2>();
+			outTriangles = new List<int>();
 			for (var i = 0; i < triangles.Count; i += 3)
 			{
-				var pts = new List<int>() {
-					triangles[i],
-					triangles[i + 1],
-					triangles[i + 2],
-					};
-
-				var subMesh = new MeshGenerator(new StringBuilder().AppendJoin("-", pts).ToString(), UVType.SubTri);
-				subMesh.Add(new List<int>() { 0, 1, 2 });
-				foreach (var pt in pts)
+				var localVertices = new List<Vector3>()
 				{
-					subMesh.Add(_vertices[pt]);
+					_vertices[triangles[i]],
+					_vertices[triangles[i+1]],
+					_vertices[triangles[i+2]],
+				};
+				outTriangles.AddRange(new List<int>()
+				{
+					vertices.Count,
+					vertices.Count+1,
+					vertices.Count+2
+				});
+				vertices.AddRange(localVertices);
+				var plane = new Plane(localVertices[0], localVertices[1], localVertices[2]);
+				var center = (localVertices[0] + localVertices[1] + localVertices[2]) / 3;
+				plane.Translate(-center);
+				var normal = plane.normal;
 
+				var u = Vector3.Cross(normal, new Vector3(UnityEngine.Random.Range(-1f, 1f), UnityEngine.Random.Range(-1f, 1f), UnityEngine.Random.Range(-1f, 1f))).normalized;
+				var v = Vector3.Cross(normal, u).normalized;
+
+				var mins = new Vector2(float.MaxValue, float.MaxValue);
+				var maxes = new Vector2(float.MinValue, float.MinValue);
+
+				var unScaledUVs = new List<Vector2>();
+				foreach (var vertex in localVertices)
+				{
+					var vectorToCenter = vertex - center;
+
+					var uComponent = Vector3.Dot(vectorToCenter, u);
+					var vComponent = Vector3.Dot(vectorToCenter, v);
+
+					if (uComponent < mins.x)
+					{
+						mins.x = uComponent;
+					}
+					if (uComponent > maxes.x)
+					{
+						maxes.x = uComponent;
+					}
+					if (vComponent < mins.y)
+					{
+						mins.y = vComponent;
+					}
+					if (vComponent > maxes.y)
+					{
+						maxes.y = vComponent;
+					}
+					unScaledUVs.Add(new Vector2(uComponent, vComponent));
 				}
-				subMesh.Generate(parentTransform, material);
+
+				foreach (var uv in unScaledUVs)
+				{
+					uvs.Add(new Vector2((uv.x - mins.x) / (maxes.x - mins.x), (uv.y - mins.y) / (maxes.y - mins.y)));
+				}
 			}
-		}
-
-		private List<Vector2> GetSubTriUVs()
-		{
-			var plane = new Plane(_vertices[0], _vertices[1], _vertices[2]);
-			var center = (_vertices[0] + _vertices[1] + _vertices[2]) / 3;
-			plane.Translate(-center);
-			var normal = plane.normal;
-
-			var u = Vector3.Cross(normal, new Vector3(UnityEngine.Random.Range(-1f, 1f), UnityEngine.Random.Range(-1f, 1f), UnityEngine.Random.Range(-1f, 1f))).normalized;
-			var v = Vector3.Cross(normal, u).normalized;
-
-			var mins = new Vector2(float.MaxValue, float.MaxValue);
-			var maxes = new Vector2(float.MinValue, float.MinValue);
-
-			var unScaledUVs = new List<Vector2>();
-			foreach (var vertex in _vertices)
-			{
-				var vectorToCenter = vertex - center;
-
-				var uComponent = Vector3.Dot(vectorToCenter, u);
-				var vComponent = Vector3.Dot(vectorToCenter, v);
-
-				if (uComponent < mins.x)
-				{
-					mins.x = uComponent;
-				}
-				if (uComponent > maxes.x)
-				{
-					maxes.x = uComponent;
-				}
-				if (vComponent < mins.y)
-				{
-					mins.y = vComponent;
-				}
-				if (vComponent > maxes.y)
-				{
-					maxes.y = vComponent;
-				}
-				unScaledUVs.Add(new Vector2(uComponent, vComponent));
-			}
-
-			var uvs = new List<Vector2>();
-			foreach (var uv in unScaledUVs)
-			{
-				uvs.Add(new Vector2((uv.x - mins.x) / (maxes.x - mins.x), (uv.y - mins.y) / (maxes.y - mins.y)));
-			}
-			return uvs;
 		}
 	}
 
