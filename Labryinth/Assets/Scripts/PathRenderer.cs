@@ -108,7 +108,7 @@ public class PathRenderer : Singleton<PathRenderer>
 				//typeof(UVDebugger)
 			});
 
-
+			meshObject.layer = LayerMask.NameToLayer("Walls");
 			meshObject.transform.parent = parentTransform;
 			meshObject.transform.localScale = Vector3.one;
 			meshObject.transform.localPosition = Vector3.zero;

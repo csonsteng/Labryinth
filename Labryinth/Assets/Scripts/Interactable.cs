@@ -4,7 +4,6 @@ using System.Collections.Generic;
 using UnityEngine;
 
 [RequireComponent(typeof(Collider))]
-[RequireComponent(typeof(Rigidbody))]
 public class Interactable : MonoBehaviour
 {
 	[SerializeField] private CanvasBillboard _canvas;
@@ -12,6 +11,7 @@ public class Interactable : MonoBehaviour
 
 	private void Start()
 	{
+		gameObject.layer = LayerMask.NameToLayer("Interactables");
 		InteractableManager.Instance.Register(this);
 		HideCanvas();
 	}

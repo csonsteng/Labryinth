@@ -23,6 +23,20 @@ public class Enemy : Singleton<Enemy>
 		Once speed is up, does not slow down until outside of the lesser scent.
 	*/
 
+	// todo: scrap all nav mesh shit
+	// enemy will a star between nodes when wandering + hunting.
+	// when chasing, do a cross product between the direction to player and direction to nearest node.
+	// move a vector that is partially towards the player and partially towards the node based on the cross product.
+	// (cross product is assessing how colinear the lines are. colinear = 0)
+	// this should hopefully ensure we maintain adequate distance from walls.
+	// if we lose sight we should follow the last known player location.
+	// once reaching that point, we should continue down the same pathway until we reach an intersection
+	// only then should we hunt
+
+	// also can probably find where we are on the map by checking our radius and angle.
+	// this way we don't have to rely on a collider in each node that may or may not be bypassed
+
+
 	/// <summary>
 	/// Wandering: No Sense of Player
 	/// Hunting: Can Sense Player but has not Seen player
@@ -51,9 +65,11 @@ public class Enemy : Singleton<Enemy>
 	private NavMeshAgent _agent;
 
 	private List<NodeAddress> _huntPath = new();
+	private int _layerMask;
 
 	public void Spawn()
 	{
+		_layerMask = LayerMask.GetMask(new string[] { "Characters" });
 		_agent = GetComponent<NavMeshAgent>();
 		_currentNode = Maze.EndNode;
 		_lastNode = Maze.EndNode;
@@ -94,9 +110,10 @@ public class Enemy : Singleton<Enemy>
 		}
 	}
 
+
 	private bool CanSeePlayer()
 	{
-		if(Physics.Raycast(transform.position, (Player.Position - transform.position), out var hitInfo, _sightRange, LayerMask.NameToLayer("Interactables")))
+		if (Physics.Raycast(transform.position, (Player.Position - transform.position), out var hitInfo, _sightRange, _layerMask))
 		{
 			return hitInfo.collider.gameObject.CompareTag("Player");
 		}

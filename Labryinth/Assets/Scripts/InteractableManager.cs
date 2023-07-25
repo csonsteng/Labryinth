@@ -4,6 +4,8 @@ using UnityEngine;
 
 public class InteractableManager : Singleton<InteractableManager>
 {
+	[SerializeField] private WallMarkerManager _wallMarkerManager;
+
 	private readonly Dictionary<GameObject, Interactable> _interactables = new();
 
 	private readonly HashSet<GameObject> _availableInteractables = new();
@@ -18,8 +20,8 @@ public class InteractableManager : Singleton<InteractableManager>
 
 	private void Awake()
 	{
-		_layerMask = LayerMask.GetMask(new string[] { "Interactables", "Default" });
-		_wallOnlyMask = LayerMask.GetMask(new string[] { "Default" });
+		_layerMask = LayerMask.GetMask(new string[] { "Interactables", "Walls" });
+		_wallOnlyMask = LayerMask.GetMask(new string[] { "Walls" });
 	}
 
 	private void Update()
@@ -112,41 +114,64 @@ public class InteractableManager : Singleton<InteractableManager>
 			_targetInteractable.Interact();
 			return;
 		}
-		SprayWall();
+		DrawOnWall();
 	}
 
-	private Vector3[] _faceSprayOffsets = new Vector3[]
+	private Vector3[] _faceSprayPlanePoints = new Vector3[]
 	{
-		Vector3.zero,
-		Vector3.up,
-		Vector3.down,
-		Vector3.right,
-		Vector3.left
+		new Vector3(0f, 0.707f, 0f),
+		new Vector3(0.5f, -0.5f, 0f),
+		new Vector3(-0.5f, -0.5f, 0f),
 	};
 
-	private void SprayWall()
+	private void DrawOnWall()
 	{
 		var pts = new List<Vector3>();
-		foreach (var offset in _faceSprayOffsets)
+		var direction = Player.FacingDirection;
+		var rotation = Quaternion.LookRotation(direction);
+		var averagePoint = Vector3.zero;
+		foreach (var offset in _faceSprayPlanePoints)
 		{
-			var direction = Player.FacingDirection;
-			var rotation = Quaternion.LookRotation(direction);
-
 			var origin = transform.position + rotation * offset;
 			var ray = new Ray(origin, direction);
-			if(!Physics.Raycast(ray, out var hitInfo, 100f, _wallOnlyMask))
+			if (!Physics.Raycast(ray, out var hitInfo, 8f, _wallOnlyMask))
 			{
-				continue;
+				Debug.Log("Cannot draw here");
+				return;
 			}
 			pts.Add(hitInfo.point);
+			averagePoint += hitInfo.point;
+		}
+
+		averagePoint /= 3f;
+
+
+		var plane = new Plane(pts[0], pts[1], pts[2]);
+		direction = -plane.normal;
+		rotation = Quaternion.LookRotation(direction);
+
+
+
+		pts.Clear();
+		foreach (var offset in WallMarkerManager.UVs)
+		{
+			var origin = averagePoint - direction + rotation * offset / 2f;
+			var ray = new Ray(origin, direction);
+			if (!Physics.Raycast(ray, out var hitInfo, 2f, _wallOnlyMask))
+			{
+				Debug.Log("Cannot draw here");
+				return;
+			}
+			pts.Add(hitInfo.point - direction * 0.05f);
 		}
 
 		foreach(var pt in pts)
 		{
-			Debug.DrawLine(transform.position, pt, Color.red, 3f);
+			foreach(var pt2 in pts)
+			{
+				Debug.DrawLine(pt, pt2, Color.red, 3f);
+			}
 		}
+		_wallMarkerManager.MarkWall(pts);
 	}
-
-
-
 }
