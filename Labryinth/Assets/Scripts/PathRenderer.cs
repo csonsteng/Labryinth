@@ -25,68 +25,43 @@ public class PathRenderer : Singleton<PathRenderer>
 	private List<Vector3> _dummyPositions = new();
 	private List<Wicket> _dummyWickets = new();
 
-	private class MeshGenerator
+	private class SubMesh
 	{
-		private readonly List<Vector3> _vertices = new();
-		private readonly List<int> _triangles = new();
-		private readonly List<int> _reverseTriangles = new();
-		private readonly string _name;
+		private List<Vector3> _vertices = new();
+		private List<int> _triangles = new();
+		public readonly string _name;
 
-		private UVType _uvType;
-		private List<Vector3> _neighborVertices = new();
 
-		public enum UVType
-		{
-			TriPlanar,
-			XZPlane,
-			NotXZPlane
-		}
-
-		public MeshGenerator(string name, UVType uvType)
+		public SubMesh(string name)
 		{
 			_name = name;
-			_uvType = uvType;
 		}
 
-		public IEnumerable<Vector3> Vertices => _vertices;
+		public List<Vector3> Vertices => _vertices;
 
 		public void Add(Vector3 vertex) => _vertices.Add(vertex);
 		public void Add(List<Vector3> vertices) => _vertices.AddRange(vertices);
 		public void Add(List<int> indices)
 		{
 			_triangles.AddRange(indices);
-			for(var i = indices.Count - 1; i >= 0; i--)
-			{
-				_reverseTriangles.Add(indices[i]);
-			}
 		}
 
-		public void Generate(Transform parentTransform, Material material)
+		public void FetchMeshData(out List<Vector3> vertices, out List<int> triangles)
 		{
-			Generate(parentTransform, material, _triangles);
-			//Generate(parentTransform, material, _reverseTriangles, "Reverse_");
+			CleanseUnusedVertices();
+			vertices = _vertices;
+			triangles = _triangles;
 		}
 
-		private void Generate(Transform parentTransform, Material material, List<int> triangles, string namePrefix = "")
+		private void CleanseUnusedVertices()
 		{
-			var meshObject = new GameObject($"{namePrefix}{_name}_Mesh", new Type[]
-{
-				typeof(MeshFilter),
-				typeof(MeshRenderer),
-				//typeof(UVDebugger)
-});
-			meshObject.transform.parent = parentTransform;
-			meshObject.transform.localScale = Vector3.one;
-			meshObject.transform.localPosition = Vector3.zero;
-			meshObject.transform.eulerAngles = Vector3.zero;
-
 			var vertices = new List<Vector3>();
 			var vertexMapping = new Dictionary<int, int>();
 			var tris = new List<int>();
 
-			foreach (var tri in triangles)
+			foreach (var tri in _triangles)
 			{
-				if(!vertexMapping.TryGetValue(tri, out var newVertexValue))
+				if (!vertexMapping.TryGetValue(tri, out var newVertexValue))
 				{
 					newVertexValue = vertices.Count;
 					vertices.Add(_vertices[tri]);
@@ -94,53 +69,68 @@ public class PathRenderer : Singleton<PathRenderer>
 				}
 				tris.Add(newVertexValue);
 			}
+			_triangles = tris;
+			_vertices = vertices;
+		}
 
-			var uvs = new List<Vector2>();
-			if (_uvType == UVType.TriPlanar)
+	}
+
+	private class MeshGenerator
+	{
+		private readonly List<Vector3> _vertices = new();
+		private readonly List<int> _triangles = new();
+		private readonly List<SubMesh> _subMeshes = new();
+		private readonly string _name;
+
+		public MeshGenerator(string name)
+		{
+			_name = name;
+		}
+
+		public void AddSubMesh(SubMesh subMesh) => _subMeshes.Add(subMesh);
+		public void AddSubMeshes(List<SubMesh> subMeshes) => _subMeshes.AddRange(subMeshes);
+
+		public void Generate(Transform parentTransform, Material material)
+		{
+			foreach(var subMesh in _subMeshes)
 			{
-				BreakOutSubTris(tris, vertices, out vertices, out tris, out uvs);
+				subMesh.FetchMeshData(out var subMeshVertices, out var subMeshTriangles);
+				var startingVerticeCount =_vertices.Count;
+				_vertices.AddRange(subMeshVertices);
+				foreach(var tri in subMeshTriangles)
+				{
+					_triangles.Add(tri + startingVerticeCount);
+				}
 			}
+
+			var meshObject = new GameObject($"{_name}_Mesh", new Type[]
+			{
+				//typeof(UVDebugger)
+			});
+
+
+			meshObject.transform.parent = parentTransform;
+			meshObject.transform.localScale = Vector3.one;
+			meshObject.transform.localPosition = Vector3.zero;
+			meshObject.transform.eulerAngles = Vector3.zero;
+
+			BreakOutSubTris(_triangles, _vertices, out var vertices, out var triangles, out var uvs);
+			
 			var mesh = new Mesh
 			{
 				vertices = vertices.ToArray(),
-				triangles = tris.ToArray(),
+				triangles = triangles.ToArray(),
 				name = $"{_name}"
 			};
 
 			mesh.RecalculateBounds();
 			mesh.RecalculateNormals();
 			mesh.RecalculateTangents();
-			var bounds = mesh.bounds.size;
-
-			switch (_uvType)
-			{
-				case UVType.XZPlane:
-					foreach (var vertex in vertices)
-					{
-						uvs.Add(0.1f * MazeGenerator.Instance.Scale * MazeGenerator.Instance.Size * new Vector2(vertex.x / bounds.x, vertex.z / bounds.z));
-					}
-					break;
-				case UVType.NotXZPlane:
-					if(bounds.x > bounds.z)
-					{
-						foreach (var vertex in vertices)
-						{
-							uvs.Add(0.5f * new Vector2(vertex.x / bounds.x, vertex.y / bounds.y));
-						}
-					}
-					else
-					{
-						foreach (var vertex in vertices)
-						{
-							uvs.Add(0.5f * new Vector2(vertex.z / bounds.z, vertex.y / bounds.y));
-						}
-					}
-					break;
-			}
 
 			mesh.SetUVs(0, uvs.ToArray());
-			meshObject.GetComponent<MeshFilter>().mesh = mesh;
-			meshObject.GetComponent<MeshRenderer>().material = new Material(material);
+			meshObject.AddComponent<MeshFilter>().mesh = mesh;
+			meshObject.AddComponent<MeshRenderer>().material = new Material(material);
+			meshObject.AddComponent<MeshCollider>().sharedMesh = mesh;
 		}
 
 		private void BreakOutSubTris(List<int> triangles, List<Vector3> _vertices, out List<Vector3> vertices, out List<int> outTriangles, out List<Vector2> uvs)
@@ -209,11 +199,11 @@ public class PathRenderer : Singleton<PathRenderer>
 		}
 	}
 
-	private MeshGenerator _floorMesh;
-	private MeshGenerator _wallsMesh;
-	private MeshGenerator _ceilingMesh;
+	private SubMesh _primaryMesh;
 
-	private List<Vector3> _vertices = new();
+	private List<SubMesh> _subMeshes = new();
+
+	private List<Vector3> Vertices => _primaryMesh.Vertices;
 
 	public float CeilingHeight = 6f;
 	public float WicketWidth = 7f;
@@ -223,10 +213,7 @@ public class PathRenderer : Singleton<PathRenderer>
 
 	public void Generate()
 	{
-		_floorMesh = new MeshGenerator("Floor", MeshGenerator.UVType.XZPlane);
-		_wallsMesh = new MeshGenerator("Walls", MeshGenerator.UVType.TriPlanar);
-		_ceilingMesh = new MeshGenerator("Ceiling", MeshGenerator.UVType.XZPlane);
-		_vertices = new List<Vector3>();
+		_primaryMesh = new SubMesh("Walls");
 
 
 		foreach ((var currentNodeAddress, var currentNode) in Maze.NodeMap)
@@ -315,9 +302,9 @@ public class PathRenderer : Singleton<PathRenderer>
 
 			}
 			
-			var floorVertex = _vertices.Count;
+			var floorVertex = Vertices.Count;
 			AddVertex(intersectionCenter);
-			var ceilingVertex = _vertices.Count;
+			var ceilingVertex = Vertices.Count;
 			AddVertex(intersectionCenter + Vector3.up * CeilingHeight);
 
 			var orderedWickets = adjacentWickets.OrderBy(wicket =>
@@ -369,32 +356,11 @@ public class PathRenderer : Singleton<PathRenderer>
 			}
 
 		}
-
-		_wallsMesh.Generate(transform, Material);
-		_floorMesh.Generate(transform, Material);
-		_ceilingMesh.Generate(transform, Material);
-		/*
-				var mesh = new Mesh
-				{
-					vertices = _vertices.ToArray(),
-					triangles = _triangles.ToArray(),
-					name = "Maze"
-				};
-
-				var uvs = new List<Vector2>();
-
-				mesh.RecalculateBounds();
-				mesh.RecalculateNormals();
-				mesh.RecalculateTangents();
-				var bounds = mesh.bounds;
-				foreach (var vertex in _vertices)
-				{
-					uvs.Add((new Vector2(vertex.x / bounds.size.x, vertex.z / bounds.size.z) * 10f));
-				}
-				mesh.SetUVs(0, uvs.ToArray());
-				GetComponent<MeshFilter>().mesh = mesh;*/
-
-				}
+		var generator = new MeshGenerator("Cave");
+		generator.AddSubMesh(_primaryMesh);
+		generator.AddSubMeshes(_subMeshes);
+		generator.Generate(transform, Material);
+	}
 
 	private struct WicketConnection
 	{
@@ -430,8 +396,8 @@ public class PathRenderer : Singleton<PathRenderer>
 
 	private void AddCollider(int vertex1, int vertex2)
 	{
-		var point1 = _vertices[vertex1];
-		var point2 = _vertices[vertex2];
+		var point1 = Vertices[vertex1];
+		var point2 = Vertices[vertex2];
 		var averagePoint = (point1 + point2) / 2f;
 
 		var normalized = (point2 - point1).normalized;
@@ -460,11 +426,11 @@ public class PathRenderer : Singleton<PathRenderer>
 		_dummyPositions.Add(averagePoint);
 
 		_dummyWickets.Add(wicket);
-		var newMesh = new MeshGenerator($"Wicket Seal {_dummyWickets.Count - 1}", MeshGenerator.UVType.NotXZPlane);
+		var newMesh = new SubMesh($"Wicket Seal {_dummyWickets.Count - 1}");
 
 		foreach(var vertex in wicket.GetPoints)
 		{
-			newMesh.Add(_vertices[vertex]);
+			newMesh.Add(Vertices[vertex]);
 		}
 		var worldTriangles = new List<int>();
 		worldTriangles.AddRange(OrientedTriangle(basePoint, new int[]
@@ -486,7 +452,7 @@ public class PathRenderer : Singleton<PathRenderer>
 			var index = 0;
 			foreach(var vertex in newMesh.Vertices)
 			{
-				if(vertex == _vertices[i])
+				if(vertex == Vertices[i])
 				{
 					localTriangles.Add(index);
 					break;
@@ -495,7 +461,7 @@ public class PathRenderer : Singleton<PathRenderer>
 			}
 		}
 		newMesh.Add(localTriangles);
-		newMesh.Generate(transform, Material);
+		_subMeshes.Add(newMesh);
 
 		AddCollider(wicket[0], wicket[3]);
 
@@ -546,7 +512,7 @@ public class PathRenderer : Singleton<PathRenderer>
 
 	private List<int> OrientedTriangle(Vector3 basePoint, int[] triangle)
 	{
-		var plane = new Plane(_vertices[triangle[0]], _vertices[triangle[1]], _vertices[triangle[2]]);
+		var plane = new Plane(Vertices[triangle[0]], Vertices[triangle[1]], Vertices[triangle[2]]);
 		if (plane.GetSide(basePoint + Vector3.up)){
 			return triangle.ToList();
 		}
@@ -564,7 +530,7 @@ public class PathRenderer : Singleton<PathRenderer>
 	/// </summary>
 	private Vector3 AverageWicketLocation(Wicket wicket)
 	{
-		var sum = _vertices[wicket[0]] + _vertices[wicket[^1]];
+		var sum = Vertices[wicket[0]] + Vertices[wicket[^1]];
 
 		return sum / 2f;
 	}
@@ -575,25 +541,7 @@ public class PathRenderer : Singleton<PathRenderer>
 		{
 			return;
 		}
-
-		var sameHeight = _vertices[triangle[0]].y;
-		for(var i = 1; i < triangle.Count; i++)
-		{
-			if (_vertices[triangle[i]].y != sameHeight)
-			{
-				_wallsMesh.Add(triangle);
-				return;
-			}
-		}
-
-		// if the y component of all vertices are identical, it's a ceiling or a floor
-		if(Mathf.Approximately(sameHeight, 0f))
-		{
-			_floorMesh.Add(triangle);
-		} else
-		{
-			_ceilingMesh.Add(triangle);
-		}
+		_primaryMesh.Add(triangle);
 	}
 
 
@@ -642,7 +590,7 @@ public class PathRenderer : Singleton<PathRenderer>
 		var indices = new List<int>();
 		foreach (var vertex in vertices)
 		{
-			indices.Add(_vertices.Count);
+			indices.Add(Vertices.Count);
 			AddVertex(vertex);
 		}
 		return new Wicket(indices.ToArray());
@@ -651,10 +599,7 @@ public class PathRenderer : Singleton<PathRenderer>
 
 	private void AddVertex(Vector3 vertex)
 	{
-		_vertices.Add(vertex);
-		_wallsMesh.Add(vertex);
-		_floorMesh.Add(vertex);
-		_ceilingMesh.Add(vertex);
+		_primaryMesh.Add(vertex);
 	}
 
 	private Vector3 Vector3Lerp(Vector3 start, Vector3 end, float distance)

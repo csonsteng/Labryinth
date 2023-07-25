@@ -59,7 +59,7 @@ public class Player : Singleton<Player>
 	{
 		if (Input.GetAxis("Interact") <= 0f)
 		{
-			_canInteract = true;
+			_canInteract = true;	// pauper's debouncing
 			return;
 		}
 		if(!_canInteract)

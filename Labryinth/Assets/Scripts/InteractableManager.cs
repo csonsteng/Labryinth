@@ -6,47 +6,68 @@ public class InteractableManager : Singleton<InteractableManager>
 {
 	private readonly Dictionary<GameObject, Interactable> _interactables = new();
 
-	private readonly List<Interactable> _availableInteractables = new();
+	private readonly HashSet<GameObject> _availableInteractables = new();
 
 	private Interactable _targetInteractable;
 
-	private void Update()
+	private int _layerMask;
+	private int _wallOnlyMask;
+
+	private bool _hasTarget;
+
+
+	private void Awake()
 	{
-		CheckTargetInteractable();
+		_layerMask = LayerMask.GetMask(new string[] { "Interactables", "Default" });
+		_wallOnlyMask = LayerMask.GetMask(new string[] { "Default" });
 	}
 
-	private void CheckTargetInteractable()
+	private void Update()
 	{
-		foreach (var interactable in _availableInteractables)
+		var direction = Player.FacingDirection;
+		var ray = new Ray(transform.position, direction);
+		_hasTarget = Physics.Raycast(ray, out var hitInfo, 7.5f, _layerMask);
+		if (!_hasTarget)
 		{
-			var direction = Player.FacingDirection;
-			var ray = new Ray(transform.position, direction);
-			if (!Physics.Raycast(ray, out var hitInfo, 5f))
-			{
-				continue;
-			}
-			if (hitInfo.collider.gameObject != interactable.gameObject)
-			{
-				continue;
-			}
-			if(interactable == _targetInteractable)
-			{
-				return;
-			}
-			UpdateTargetInteractable(interactable);
-			interactable.ShowCanvas();
+			UpdateTargetInteractable(null);
 			return;
 		}
-		UpdateTargetInteractable(null);
+		Debug.Log(hitInfo.collider.gameObject.name);
+		if (CheckTargetInteractable(hitInfo))
+		{
+			return;
+		}
+		// we have a wall 8)
+	}
+
+	private bool CheckTargetInteractable(RaycastHit hitInfo)
+	{
+		var targetGameObject = hitInfo.collider.gameObject;
+		if (!_availableInteractables.Contains(targetGameObject))
+		{
+			UpdateTargetInteractable(null);
+			return false;
+		}
+		UpdateTargetInteractable(_interactables[targetGameObject]);
+		return true;
+		
 	}
 
 	private void UpdateTargetInteractable(Interactable interactable)
 	{
+		if(interactable == _targetInteractable)
+		{
+			return;
+		}
 		if (_targetInteractable != null)
 		{
 			_targetInteractable.HideCanvas();
 		}
 		_targetInteractable = interactable;
+		if (_targetInteractable != null)
+		{
+			_targetInteractable.ShowCanvas();
+		}
 	}
 
 	public void Register(Interactable interactable)
@@ -66,27 +87,64 @@ public class InteractableManager : Singleton<InteractableManager>
 
 	private void OnTriggerEnter(Collider collider)
 	{ 
-		if (_interactables.TryGetValue(collider.gameObject, out var interactable))
+		if (_interactables.ContainsKey(collider.gameObject))
 		{
-			_availableInteractables.Add(interactable);
+			_availableInteractables.Add(collider.gameObject);
 		}
 	}
 
 	private void OnTriggerExit(Collider collider)
 	{
-		if (_interactables.TryGetValue(collider.gameObject, out var interactable))
+		if (_interactables.ContainsKey(collider.gameObject))
 		{
-			_availableInteractables.Remove(interactable);
+			_availableInteractables.Remove(collider.gameObject);
 		}
 	}
 
 	public void OnInteractButtonPressed()
 	{
-		if(_targetInteractable == null)
+		if (!_hasTarget)
 		{
 			return;
 		}
-		_targetInteractable.Interact();
+		if (_targetInteractable != null)
+		{
+			_targetInteractable.Interact();
+			return;
+		}
+		SprayWall();
+	}
+
+	private Vector3[] _faceSprayOffsets = new Vector3[]
+	{
+		Vector3.zero,
+		Vector3.up,
+		Vector3.down,
+		Vector3.right,
+		Vector3.left
+	};
+
+	private void SprayWall()
+	{
+		var pts = new List<Vector3>();
+		foreach (var offset in _faceSprayOffsets)
+		{
+			var direction = Player.FacingDirection;
+			var rotation = Quaternion.LookRotation(direction);
+
+			var origin = transform.position + rotation * offset;
+			var ray = new Ray(origin, direction);
+			if(!Physics.Raycast(ray, out var hitInfo, 100f, _wallOnlyMask))
+			{
+				continue;
+			}
+			pts.Add(hitInfo.point);
+		}
+
+		foreach(var pt in pts)
+		{
+			Debug.DrawLine(transform.position, pt, Color.red, 3f);
+		}
 	}
 
 
