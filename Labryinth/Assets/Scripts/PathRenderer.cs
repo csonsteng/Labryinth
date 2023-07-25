@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using UnityEditor.UIElements;
 using UnityEngine;
 
 public class PathRenderer : Singleton<PathRenderer>
@@ -115,11 +116,12 @@ public class PathRenderer : Singleton<PathRenderer>
 			meshObject.transform.eulerAngles = Vector3.zero;
 
 			BreakOutSubTris(_triangles, _vertices, out var vertices, out var triangles, out var uvs);
-			
+			SubDivide(6, triangles, out var finalTriangles, ref vertices, ref uvs);
+
 			var mesh = new Mesh
 			{
 				vertices = vertices.ToArray(),
-				triangles = triangles.ToArray(),
+				triangles = finalTriangles.ToArray(),
 				name = $"{_name}"
 			};
 
@@ -133,26 +135,26 @@ public class PathRenderer : Singleton<PathRenderer>
 			meshObject.AddComponent<MeshCollider>().sharedMesh = mesh;
 		}
 
-		private void BreakOutSubTris(List<int> triangles, List<Vector3> _vertices, out List<Vector3> vertices, out List<int> outTriangles, out List<Vector2> uvs)
+		private void BreakOutSubTris(List<int> triangles, List<Vector3> vertices, out List<Vector3> outVertices, out List<int> outTriangles, out List<Vector2> uvs)
 		{
-			vertices = new List<Vector3>();
+			outVertices = new List<Vector3>();
 			uvs = new List<Vector2>();
 			outTriangles = new List<int>();
 			for (var i = 0; i < triangles.Count; i += 3)
 			{
 				var localVertices = new List<Vector3>()
 				{
-					_vertices[triangles[i]],
-					_vertices[triangles[i+1]],
-					_vertices[triangles[i+2]],
+					vertices[triangles[i]],
+					vertices[triangles[i+1]],
+					vertices[triangles[i+2]],
 				};
 				outTriangles.AddRange(new List<int>()
 				{
-					vertices.Count,
-					vertices.Count+1,
-					vertices.Count+2
+					outVertices.Count,
+					outVertices.Count+1,
+					outVertices.Count+2
 				});
-				vertices.AddRange(localVertices);
+				outVertices.AddRange(localVertices);
 				var plane = new Plane(localVertices[0], localVertices[1], localVertices[2]);
 				var center = (localVertices[0] + localVertices[1] + localVertices[2]) / 3;
 				plane.Translate(-center);
@@ -196,6 +198,95 @@ public class PathRenderer : Singleton<PathRenderer>
 					uvs.Add(new Vector2((uv.x - mins.x) / (maxes.x - mins.x), (uv.y - mins.y) / (maxes.y - mins.y)));
 				}
 			}
+		}
+
+		private void SubDivide(int divisions, List<int> inTriangles, out List<int> finalTriangles, ref List<Vector3> finalVertices, ref List<Vector2> finalUVs)
+		{
+			finalTriangles = new List<int>();
+
+
+			Vector3[] vertices = new Vector3[3];
+			Vector2[] uvs = new Vector2[3];
+			float[] deltas = new float[3];
+			for (var i = 0; i < inTriangles.Count; i += 3)
+			{
+				for (var j = 0; j < 3; j++)
+				{
+					vertices[j] = finalVertices[i + j];
+				}
+				for (var j = 0; j < 3; j++)
+				{
+					deltas[j] = (vertices[j] - vertices[j == 2 ? 0 : j + 1]).magnitude;
+				}
+				SubDivideIndividual(ref finalTriangles, ref finalVertices, ref finalUVs, new int[] { i, i+1, i+2 }, deltas, divisions - 1);
+			}
+
+
+
+		}
+
+		private void SubDivideIndividual(ref List<int> finalTriangles, ref List<Vector3> finalVertices, ref List<Vector2> finalUVs, int[] triangle, float[] deltas, int remainingDivisions)
+		{
+			var maxDelta = float.MinValue;
+			var firstSplitVertexLocalIndex = -1;
+			for (var i = 0; i < 3; i++)
+			{
+				if (deltas[i] > maxDelta)
+				{
+					firstSplitVertexLocalIndex = i;
+				}
+			}
+
+			var secondSplitVertexLocalIndex = firstSplitVertexLocalIndex == 2 ? 0 : firstSplitVertexLocalIndex + 1;
+
+			var fistSplitIndex = triangle[firstSplitVertexLocalIndex];
+			var secondSplitIndex = triangle[secondSplitVertexLocalIndex];
+
+			var middleVertex = (finalVertices[fistSplitIndex] + finalVertices[secondSplitIndex]) / 2f;
+			// noise doesn't work cause i don't share vertices across edges right now
+			// var noiseVertex = new Vector3(UnityEngine.Random.Range(-0.01f, 0.1f), UnityEngine.Random.Range(-0.01f, 0.1f), UnityEngine.Random.Range(-0.01f, 0.01f));
+			// var noisyVertex = middleVertex + noiseVertex;
+			var middleVertexIndex = finalVertices.Count;
+			finalVertices.Add(middleVertex);
+
+			var middleUV = (finalUVs[fistSplitIndex] + finalUVs[secondSplitIndex]) / 2f;
+			//var noisyUV = new Vector2(Mathf.Repeat(middleUV.x + UnityEngine.Random.Range(-0.01f, 0.01f), 1f), Mathf.Repeat(middleUV.y + UnityEngine.Random.Range(-0.01f, 0.01f), 1f));
+			finalUVs.Add(middleUV);
+
+			var nonSplitVertexLocalIndex = -1;
+			for (var i = 0; i < 3; i++)
+			{
+				if (i == firstSplitVertexLocalIndex || i == secondSplitVertexLocalIndex)
+				{
+					continue;
+				}
+
+				nonSplitVertexLocalIndex = i;
+				break;
+			}
+
+
+
+			var nonSplitIndex = triangle[nonSplitVertexLocalIndex];
+
+			var triangle1 = new int[] { fistSplitIndex, middleVertexIndex, nonSplitIndex };
+			var triangle2 = new int[] { middleVertexIndex , secondSplitIndex, nonSplitIndex };
+
+			if (remainingDivisions == 0)
+			{
+				finalTriangles.AddRange(triangle1); 
+				finalTriangles.AddRange(triangle2);
+				return;
+			}
+			var splitDelta = maxDelta / 2f;
+			var newDelta = (finalVertices[middleVertexIndex] - finalVertices[nonSplitIndex]).magnitude;
+			var delta1 = new float[] { splitDelta, newDelta, deltas[nonSplitVertexLocalIndex] };
+			var delta2 = new float[] { splitDelta, deltas[secondSplitVertexLocalIndex], newDelta };
+
+			SubDivideIndividual(ref finalTriangles, ref finalVertices, ref finalUVs, triangle1, delta1, remainingDivisions - 1);
+			SubDivideIndividual(ref finalTriangles, ref finalVertices, ref finalUVs, triangle2, delta2, remainingDivisions - 1);
+
+
 		}
 	}
 
