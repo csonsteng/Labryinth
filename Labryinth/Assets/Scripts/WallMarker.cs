@@ -13,4 +13,5 @@ public class WallMarker : MonoBehaviour
 
 	// also set up a canvas pooler for interactables, so we don't have to retain one canvas per mark.
 	// in most cases there will only ever be 0-1 active interactables.
+	// never mind. can only have 1. So no need to pool. Just update the transform rather than giving each its own
 }
