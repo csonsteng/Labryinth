@@ -1,4 +1,5 @@
 using Cysharp.Threading.Tasks;
+using Sirenix.OdinInspector;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
@@ -36,6 +37,14 @@ public class GameManager : Singleton<GameManager>
 		Player.Instance.Initialize();
 		_enemy.Spawn();
 		_state = GameState.Running;
+	}
+
+	[Button]
+	public void Restart()
+	{
+		_state = GameState.Ending;
+		PathRenderer.Instance.Destroy();
+		Start();
 	}
 
 	private void PlaceEnd()

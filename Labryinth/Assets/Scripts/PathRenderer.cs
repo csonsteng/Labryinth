@@ -211,6 +211,15 @@ public class PathRenderer : Singleton<PathRenderer>
 	public GameObject ColliderTemplate;
 	public Material Material;
 
+	public void Destroy()
+	{
+		foreach(Transform child in transform)
+		{
+			Destroy(child.gameObject);
+		}
+		_subMeshes.Clear();
+	}
+
 	public void Generate()
 	{
 		_primaryMesh = new SubMesh("Walls");
