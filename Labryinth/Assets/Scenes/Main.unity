@@ -1010,8 +1010,10 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   CeilingHeight: 7
   WicketWidth: 7
+  uFactor: 1
+  vFactor: 1
   ColliderTemplate: {fileID: 45664750}
-  Material: {fileID: 2100000, guid: 224de5a1c3ba5f948af30bd7826e4666, type: 2}
+  Material: {fileID: 2100000, guid: 51f53c7e6c392fa46bbb8770d086ad7a, type: 2}
 --- !u!1 &705507993
 GameObject:
   m_ObjectHideFlags: 0
@@ -2560,7 +2562,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 6b32c050ec1247e4d83e20925a1b08e4, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  _size: 3
+  _size: 2
   _scale: 50
   _nodeObjectTemplate: {fileID: 978856112}
   _pathObjectTemplate: {fileID: 171922970}

@@ -104,19 +104,17 @@ public class PathRenderer : Singleton<PathRenderer>
 				}
 			}
 
-			var meshObject = new GameObject($"{_name}_Mesh", new Type[]
+			var meshObject = new GameObject($"{_name}_Mesh")
 			{
-				//typeof(UVDebugger)
-			});
-
-			meshObject.layer = LayerMask.NameToLayer("Walls");
+				layer = LayerMask.NameToLayer("Walls")
+			};
 			meshObject.transform.parent = parentTransform;
 			meshObject.transform.localScale = Vector3.one;
 			meshObject.transform.localPosition = Vector3.zero;
 			meshObject.transform.eulerAngles = Vector3.zero;
 
-			BreakOutSubTris(_triangles, _vertices, out var vertices, out var triangles, out var uvs);
-			SubDivide(6, triangles, out var finalTriangles, ref vertices, ref uvs);
+			RealignTris(_triangles, _vertices, out var vertices, out var triangles);
+			SubDivide(6, triangles, out var finalTriangles, ref vertices);
 
 			var mesh = new Mesh
 			{
@@ -129,16 +127,15 @@ public class PathRenderer : Singleton<PathRenderer>
 			mesh.RecalculateNormals();
 			mesh.RecalculateTangents();
 
-			mesh.SetUVs(0, uvs.ToArray());
 			meshObject.AddComponent<MeshFilter>().mesh = mesh;
 			meshObject.AddComponent<MeshRenderer>().material = new Material(material);
 			meshObject.AddComponent<MeshCollider>().sharedMesh = mesh;
 		}
 
-		private void BreakOutSubTris(List<int> triangles, List<Vector3> vertices, out List<Vector3> outVertices, out List<int> outTriangles, out List<Vector2> uvs)
+		// I don't feel like this actually does anything, but it breaks if I remove it
+		private void RealignTris(List<int> triangles, List<Vector3> vertices, out List<Vector3> outVertices, out List<int> outTriangles)
 		{
 			outVertices = new List<Vector3>();
-			uvs = new List<Vector2>();
 			outTriangles = new List<int>();
 			for (var i = 0; i < triangles.Count; i += 3)
 			{
@@ -155,58 +152,15 @@ public class PathRenderer : Singleton<PathRenderer>
 					outVertices.Count+2
 				});
 				outVertices.AddRange(localVertices);
-				var plane = new Plane(localVertices[0], localVertices[1], localVertices[2]);
-				var center = (localVertices[0] + localVertices[1] + localVertices[2]) / 3;
-				plane.Translate(-center);
-				var normal = plane.normal;
-
-				var u = Vector3.Cross(normal, new Vector3(UnityEngine.Random.Range(-1f, 1f), UnityEngine.Random.Range(-1f, 1f), UnityEngine.Random.Range(-1f, 1f))).normalized;
-				var v = Vector3.Cross(normal, u).normalized;
-
-				var mins = new Vector2(float.MaxValue, float.MaxValue);
-				var maxes = new Vector2(float.MinValue, float.MinValue);
-
-				var unScaledUVs = new List<Vector2>();
-				foreach (var vertex in localVertices)
-				{
-					var vectorToCenter = vertex - center;
-
-					var uComponent = Vector3.Dot(vectorToCenter, u);
-					var vComponent = Vector3.Dot(vectorToCenter, v);
-
-					if (uComponent < mins.x)
-					{
-						mins.x = uComponent;
-					}
-					if (uComponent > maxes.x)
-					{
-						maxes.x = uComponent;
-					}
-					if (vComponent < mins.y)
-					{
-						mins.y = vComponent;
-					}
-					if (vComponent > maxes.y)
-					{
-						maxes.y = vComponent;
-					}
-					unScaledUVs.Add(new Vector2(uComponent, vComponent));
-				}
-
-				foreach (var uv in unScaledUVs)
-				{
-					uvs.Add(new Vector2((uv.x - mins.x) / (maxes.x - mins.x), (uv.y - mins.y) / (maxes.y - mins.y)));
-				}
 			}
 		}
 
-		private void SubDivide(int divisions, List<int> inTriangles, out List<int> finalTriangles, ref List<Vector3> finalVertices, ref List<Vector2> finalUVs)
+		private void SubDivide(int divisions, List<int> inTriangles, out List<int> finalTriangles, ref List<Vector3> finalVertices)
 		{
 			finalTriangles = new List<int>();
 
 
 			Vector3[] vertices = new Vector3[3];
-			Vector2[] uvs = new Vector2[3];
 			float[] deltas = new float[3];
 			for (var i = 0; i < inTriangles.Count; i += 3)
 			{
@@ -218,14 +172,11 @@ public class PathRenderer : Singleton<PathRenderer>
 				{
 					deltas[j] = (vertices[j] - vertices[j == 2 ? 0 : j + 1]).magnitude;
 				}
-				SubDivideIndividual(ref finalTriangles, ref finalVertices, ref finalUVs, new int[] { i, i+1, i+2 }, deltas, divisions - 1);
+				SubDivideIndividual(ref finalTriangles, ref finalVertices, new int[] { i, i+1, i+2 }, deltas, divisions - 1);
 			}
-
-
-
 		}
 
-		private void SubDivideIndividual(ref List<int> finalTriangles, ref List<Vector3> finalVertices, ref List<Vector2> finalUVs, int[] triangle, float[] deltas, int remainingDivisions)
+		private void SubDivideIndividual(ref List<int> finalTriangles, ref List<Vector3> finalVertices, int[] triangle, float[] deltas, int remainingDivisions)
 		{
 			var maxDelta = float.MinValue;
 			var firstSplitVertexLocalIndex = -1;
@@ -248,10 +199,6 @@ public class PathRenderer : Singleton<PathRenderer>
 			// var noisyVertex = middleVertex + noiseVertex;
 			var middleVertexIndex = finalVertices.Count;
 			finalVertices.Add(middleVertex);
-
-			var middleUV = (finalUVs[fistSplitIndex] + finalUVs[secondSplitIndex]) / 2f;
-			//var noisyUV = new Vector2(Mathf.Repeat(middleUV.x + UnityEngine.Random.Range(-0.01f, 0.01f), 1f), Mathf.Repeat(middleUV.y + UnityEngine.Random.Range(-0.01f, 0.01f), 1f));
-			finalUVs.Add(middleUV);
 
 			var nonSplitVertexLocalIndex = -1;
 			for (var i = 0; i < 3; i++)
@@ -283,8 +230,8 @@ public class PathRenderer : Singleton<PathRenderer>
 			var delta1 = new float[] { splitDelta, newDelta, deltas[nonSplitVertexLocalIndex] };
 			var delta2 = new float[] { splitDelta, deltas[secondSplitVertexLocalIndex], newDelta };
 
-			SubDivideIndividual(ref finalTriangles, ref finalVertices, ref finalUVs, triangle1, delta1, remainingDivisions - 1);
-			SubDivideIndividual(ref finalTriangles, ref finalVertices, ref finalUVs, triangle2, delta2, remainingDivisions - 1);
+			SubDivideIndividual(ref finalTriangles, ref finalVertices, triangle1, delta1, remainingDivisions - 1);
+			SubDivideIndividual(ref finalTriangles, ref finalVertices, triangle2, delta2, remainingDivisions - 1);
 
 
 		}
@@ -521,50 +468,19 @@ public class PathRenderer : Singleton<PathRenderer>
 
 	private void SealWicket(Vector3 basePoint, Wicket wicket)
 	{
-
-		var averagePoint = AverageWicketLocation(wicket);
-		_dummyPositions.Add(averagePoint);
-
-		_dummyWickets.Add(wicket);
-		var newMesh = new SubMesh($"Wicket Seal {_dummyWickets.Count - 1}");
-
-		foreach(var vertex in wicket.GetPoints)
-		{
-			newMesh.Add(Vertices[vertex]);
-		}
-		var worldTriangles = new List<int>();
-		worldTriangles.AddRange(OrientedTriangle(basePoint, new int[]
+		AddTriangle(OrientedTriangle(basePoint, new int[]
 		{
 			wicket[0],
 			wicket[1],
 			wicket[3]
 		}));
-		worldTriangles.AddRange(OrientedTriangle(basePoint, new int[]
+		AddTriangle(OrientedTriangle(basePoint, new int[]
 		{
 			wicket[1],
 			wicket[2],
 			wicket[3]
 		}));
-
-		var localTriangles = new List<int>();
-		foreach(var i in worldTriangles)
-		{
-			var index = 0;
-			foreach(var vertex in newMesh.Vertices)
-			{
-				if(vertex == Vertices[i])
-				{
-					localTriangles.Add(index);
-					break;
-				}
-				index++;
-			}
-		}
-		newMesh.Add(localTriangles);
-		_subMeshes.Add(newMesh);
-
 		AddCollider(wicket[0], wicket[3]);
-
 	}
 
 	private void AddConnectionTriangles(Vector3 basePoint, int floorPoint, int ceilingPoint, Wicket wicket1, Wicket wicket2)
