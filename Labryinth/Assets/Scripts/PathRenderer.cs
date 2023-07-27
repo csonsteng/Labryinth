@@ -75,14 +75,16 @@ public class PathRenderer : Singleton<PathRenderer>
 
 	private class MeshGenerator
 	{
+		private float _ceilingHeight;
 		private readonly List<Vector3> _vertices = new();
 		private readonly List<int> _triangles = new();
 		private readonly List<SubMesh> _subMeshes = new();
 		private readonly string _name;
 
-		public MeshGenerator(string name)
+		public MeshGenerator(string name, float ceilingHeight)
 		{
 			_name = name;
+			_ceilingHeight = ceilingHeight;
 		}
 
 		public void AddSubMesh(SubMesh subMesh) => _subMeshes.Add(subMesh);
@@ -148,7 +150,13 @@ public class PathRenderer : Singleton<PathRenderer>
 			}
 		}
 
-		private Vector3 NoiseVertex => new(UnityEngine.Random.Range(-0.25f, 0.25f), UnityEngine.Random.Range(-0.25f, 0.25f), UnityEngine.Random.Range(-0.25f, 0.25f));
+		private Vector3 AddNoise(Vector3 baseVertex)
+		{
+			var isFloorOrCeiling = baseVertex.y < 0.5f || baseVertex.y > _ceilingHeight - 1f;
+			var lateralOffset = isFloorOrCeiling ? 0f : 0.35f;
+			var yOffset = isFloorOrCeiling ? 0.15f : 0f; 
+			return baseVertex + new Vector3(UnityEngine.Random.Range(-lateralOffset, lateralOffset), UnityEngine.Random.Range(-yOffset, yOffset), UnityEngine.Random.Range(-lateralOffset, lateralOffset));
+		}
 
 		private void SubDivide(int divisions, List<int> inTriangles, out List<int> finalTriangles, ref List<Vector3> finalVertices)
 		{
@@ -175,27 +183,27 @@ public class PathRenderer : Singleton<PathRenderer>
 
 				if(!addedVertices.TryGetValue(triLine01, out var index01))
 				{
-					var v = NoiseVertex + (finalVertices[index0] + finalVertices[index1]) / 2f;
+					var v = AddNoise((finalVertices[index0] + finalVertices[index1]) / 2f);
 					index01 = finalVertices.Count;
 					finalVertices.Add(v);
 					addedVertices.Add(triLine01, index01);
 				}
 				if (!addedVertices.TryGetValue(triLine12, out var index12))
 				{
-					var v = NoiseVertex +(finalVertices[index1] + finalVertices[index2]) / 2f;
+					var v = AddNoise((finalVertices[index1] + finalVertices[index2]) / 2f);
 					index12 = finalVertices.Count;
 					finalVertices.Add(v);
 					addedVertices.Add(triLine12, index12);
 				}
 				if (!addedVertices.TryGetValue(triLine20, out var index20))
 				{
-					var v = NoiseVertex + (finalVertices[index2] + finalVertices[index0]) / 2f;
+					var v = AddNoise((finalVertices[index2] + finalVertices[index0]) / 2f);
 					index20 = finalVertices.Count;
 					finalVertices.Add(v);
 					addedVertices.Add(triLine20, index20);
 				}
 
-				var center = NoiseVertex + (finalVertices[index0] + finalVertices[index1] + finalVertices[index2]) / 3f;
+				var center = AddNoise((finalVertices[index0] + finalVertices[index1] + finalVertices[index2]) / 3f);
 				var centerIndex = finalVertices.Count;
 				finalVertices.Add(center);
 
@@ -377,9 +385,8 @@ public class PathRenderer : Singleton<PathRenderer>
 			}
 
 		}
-		var generator = new MeshGenerator("Cave");
+		var generator = new MeshGenerator("Cave", CeilingHeight);
 		generator.AddSubMesh(_primaryMesh);
-		generator.AddSubMeshes(_subMeshes);
 		generator.Generate(transform, Material);
 	}
 
@@ -604,12 +611,23 @@ public class PathRenderer : Singleton<PathRenderer>
 	private List<Vector3> GetPlanarVertices(Vector3 basePoint, Vector3 normal)
 	{
 		var perpindicular = basePoint.PerpindicularTo(normal);
+		var ceilingType = UnityEngine.Random.Range(0, 3);
+		var ceilingOffset = UnityEngine.Random.Range(0f, 1f);
+		switch (ceilingType)
+		{
+			case 1:
+				ceilingOffset = UnityEngine.Random.Range(1f, 2f);
+				break;
+			case 2:
+				ceilingOffset = UnityEngine.Random.Range(2f, 5f);
+				break;
+		}
 		var vertices = new List<Vector3>()
 		{
 			basePoint + perpindicular * (WicketWidth + UnityEngine.Random.Range(-0.5f, 0.5f)),
-			basePoint + perpindicular * (0.7f * WicketWidth + UnityEngine.Random.Range(-0.5f, 0.5f)) + Vector3.up*(CeilingHeight+ UnityEngine.Random.Range(-0.5f, 0.5f)),
-			basePoint - perpindicular * (WicketWidth + UnityEngine.Random.Range(-0.5f, 0.5f)) + Vector3.up*(CeilingHeight+ UnityEngine.Random.Range(-0.5f, 0.5f)),
-			basePoint - perpindicular * (0.7f * WicketWidth + UnityEngine.Random.Range(-0.5f, 0.5f)),
+			basePoint + perpindicular * (0.7f * WicketWidth + UnityEngine.Random.Range(-1f, 0.5f)) + Vector3.up*(CeilingHeight + ceilingOffset + UnityEngine.Random.Range(-0.5f, 0.5f)),
+			basePoint - perpindicular * (0.7f * WicketWidth + UnityEngine.Random.Range(-1f, 0.5f)) + Vector3.up*(CeilingHeight + ceilingOffset + UnityEngine.Random.Range(-0.5f, 0.5f)),
+			basePoint - perpindicular * ( WicketWidth + UnityEngine.Random.Range(-0.5f, 0.5f)),
 		};
 		return vertices;
 	}

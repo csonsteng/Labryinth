@@ -63,6 +63,7 @@
     <Compile Include="Assets\Scripts\CanvasBillboard.cs" />
     <Compile Include="Assets\Scripts\GameManager.cs" />
     <Compile Include="Assets\Scripts\InteractableManager.cs" />
+    <Compile Include="Assets\Scripts\WallMarkerManager.cs" />
     <Compile Include="Assets\Scripts\Finish.cs" />
     <Compile Include="Assets\Scripts\OverheadCameraView.cs" />
     <Compile Include="Assets\Scripts\PlayerSettings.cs" />
@@ -70,6 +71,7 @@
     <Compile Include="Assets\Scripts\Interactable.cs" />
     <Compile Include="Assets\Scripts\NodeAddress.cs" />
     <Compile Include="Assets\Scripts\MazeGenerator.cs" />
+    <Compile Include="Assets\Scripts\WallMarker.cs" />
     <Compile Include="Assets\Scripts\Path.cs" />
     <Compile Include="Assets\Scripts\Logger.cs" />
     <Compile Include="Assets\Scripts\Player.cs" />
@@ -79,8 +81,6 @@
     <Compile Include="Assets\Scripts\Settings.cs" />
     <Compile Include="Assets\Scripts\PathID.cs" />
     <Compile Include="Assets\Scripts\Pathfinder.cs" />
-    <Compile Include="Assets\Scripts\WallMarkerManager.cs" />
-    <Compile Include="Assets\Scripts\WallMarker.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="Assets\TextMesh Pro\Shaders\TMPro.cginc" />

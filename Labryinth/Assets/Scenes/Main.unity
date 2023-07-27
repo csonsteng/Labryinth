@@ -1008,7 +1008,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: e21b3956e64b6a944a9a3d8719e8882f, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  CeilingHeight: 7
+  CeilingHeight: 8
   WicketWidth: 7
   ColliderTemplate: {fileID: 45664750}
   Material: {fileID: 2100000, guid: 51f53c7e6c392fa46bbb8770d086ad7a, type: 2}
@@ -1040,11 +1040,11 @@ Light:
   serializedVersion: 10
   m_Type: 0
   m_Shape: 0
-  m_Color: {r: 1, g: 0.7999601, b: 0.56037736, a: 1}
+  m_Color: {r: 0.6415094, g: 0.61641884, b: 0.32922745, a: 1}
   m_Intensity: 3
-  m_Range: 20
-  m_SpotAngle: 50
-  m_InnerSpotAngle: 5
+  m_Range: 75
+  m_SpotAngle: 45
+  m_InnerSpotAngle: 4
   m_CookieSize: 10
   m_Shadows:
     m_Type: 2
@@ -2560,7 +2560,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 6b32c050ec1247e4d83e20925a1b08e4, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  _size: 2
+  _size: 5
   _scale: 50
   _nodeObjectTemplate: {fileID: 978856112}
   _pathObjectTemplate: {fileID: 171922970}

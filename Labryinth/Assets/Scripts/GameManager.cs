@@ -28,7 +28,7 @@ public class GameManager : Singleton<GameManager>
 		MazeGenerator.Instance.Redraw();
 		PathRenderer.Instance.Generate();
 		await UniTask.WaitForEndOfFrame(this);
-
+		return;
 		Cursor.lockState = CursorLockMode.Locked;
 		Cursor.visible = false;
 
