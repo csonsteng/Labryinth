@@ -23,9 +23,6 @@ public class PathRenderer : Singleton<PathRenderer>
 	 * And then at each node, i need to connect all of the adjacent wickets
 	 */
 
-	private List<Vector3> _dummyPositions = new();
-	private List<Wicket> _dummyWickets = new();
-
 	private class SubMesh
 	{
 		private List<Vector3> _vertices = new();
@@ -113,8 +110,10 @@ public class PathRenderer : Singleton<PathRenderer>
 			meshObject.transform.localPosition = Vector3.zero;
 			meshObject.transform.eulerAngles = Vector3.zero;
 
-			RealignTris(_triangles, _vertices, out var vertices, out var triangles);
-			SubDivide(6, triangles, out var finalTriangles, ref vertices);
+			var vertices = new List<Vector3>();
+			vertices.AddRange(_vertices);
+
+			SubDivide(2, _triangles, out var finalTriangles, ref vertices);
 
 			var mesh = new Mesh
 			{
@@ -132,114 +131,90 @@ public class PathRenderer : Singleton<PathRenderer>
 			meshObject.AddComponent<MeshCollider>().sharedMesh = mesh;
 		}
 
-		// I don't feel like this actually does anything, but it breaks if I remove it
-		private void RealignTris(List<int> triangles, List<Vector3> vertices, out List<Vector3> outVertices, out List<int> outTriangles)
+		public struct TriLines
 		{
-			outVertices = new List<Vector3>();
-			outTriangles = new List<int>();
-			for (var i = 0; i < triangles.Count; i += 3)
+			public int Index1;
+			public int Index2;
+
+			public TriLines(int index1, int index2)
 			{
-				var localVertices = new List<Vector3>()
+				if(index2 > index1)
 				{
-					vertices[triangles[i]],
-					vertices[triangles[i+1]],
-					vertices[triangles[i+2]],
-				};
-				outTriangles.AddRange(new List<int>()
+					Index1 = index1; Index2 = index2;
+				} else
 				{
-					outVertices.Count,
-					outVertices.Count+1,
-					outVertices.Count+2
-				});
-				outVertices.AddRange(localVertices);
+					Index1 = index2; Index2 = index1;
+				}
 			}
 		}
+
+		private Vector3 NoiseVertex => new(UnityEngine.Random.Range(-0.25f, 0.25f), UnityEngine.Random.Range(-0.25f, 0.25f), UnityEngine.Random.Range(-0.25f, 0.25f));
 
 		private void SubDivide(int divisions, List<int> inTriangles, out List<int> finalTriangles, ref List<Vector3> finalVertices)
 		{
-			finalTriangles = new List<int>();
-
-
-			Vector3[] vertices = new Vector3[3];
-			float[] deltas = new float[3];
-			for (var i = 0; i < inTriangles.Count; i += 3)
+			if (divisions == 0)
 			{
-				for (var j = 0; j < 3; j++)
-				{
-					vertices[j] = finalVertices[i + j];
-				}
-				for (var j = 0; j < 3; j++)
-				{
-					deltas[j] = (vertices[j] - vertices[j == 2 ? 0 : j + 1]).magnitude;
-				}
-				SubDivideIndividual(ref finalTriangles, ref finalVertices, new int[] { i, i+1, i+2 }, deltas, divisions - 1);
-			}
-		}
-
-		private void SubDivideIndividual(ref List<int> finalTriangles, ref List<Vector3> finalVertices, int[] triangle, float[] deltas, int remainingDivisions)
-		{
-			var maxDelta = float.MinValue;
-			var firstSplitVertexLocalIndex = -1;
-			for (var i = 0; i < 3; i++)
-			{
-				if (deltas[i] > maxDelta)
-				{
-					firstSplitVertexLocalIndex = i;
-				}
-			}
-
-			var secondSplitVertexLocalIndex = firstSplitVertexLocalIndex == 2 ? 0 : firstSplitVertexLocalIndex + 1;
-
-			var fistSplitIndex = triangle[firstSplitVertexLocalIndex];
-			var secondSplitIndex = triangle[secondSplitVertexLocalIndex];
-
-			var middleVertex = (finalVertices[fistSplitIndex] + finalVertices[secondSplitIndex]) / 2f;
-			// noise doesn't work cause i don't share vertices across edges right now
-			// var noiseVertex = new Vector3(UnityEngine.Random.Range(-0.01f, 0.1f), UnityEngine.Random.Range(-0.01f, 0.1f), UnityEngine.Random.Range(-0.01f, 0.01f));
-			// var noisyVertex = middleVertex + noiseVertex;
-			var middleVertexIndex = finalVertices.Count;
-			finalVertices.Add(middleVertex);
-
-			var nonSplitVertexLocalIndex = -1;
-			for (var i = 0; i < 3; i++)
-			{
-				if (i == firstSplitVertexLocalIndex || i == secondSplitVertexLocalIndex)
-				{
-					continue;
-				}
-
-				nonSplitVertexLocalIndex = i;
-				break;
-			}
-
-
-
-			var nonSplitIndex = triangle[nonSplitVertexLocalIndex];
-
-			var triangle1 = new int[] { fistSplitIndex, middleVertexIndex, nonSplitIndex };
-			var triangle2 = new int[] { middleVertexIndex , secondSplitIndex, nonSplitIndex };
-
-			if (remainingDivisions == 0)
-			{
-				finalTriangles.AddRange(triangle1); 
-				finalTriangles.AddRange(triangle2);
+				finalTriangles = inTriangles;
 				return;
 			}
-			var splitDelta = maxDelta / 2f;
-			var newDelta = (finalVertices[middleVertexIndex] - finalVertices[nonSplitIndex]).magnitude;
-			var delta1 = new float[] { splitDelta, newDelta, deltas[nonSplitVertexLocalIndex] };
-			var delta2 = new float[] { splitDelta, deltas[secondSplitVertexLocalIndex], newDelta };
+			var tempTriangles = new List<int>();
 
-			SubDivideIndividual(ref finalTriangles, ref finalVertices, triangle1, delta1, remainingDivisions - 1);
-			SubDivideIndividual(ref finalTriangles, ref finalVertices, triangle2, delta2, remainingDivisions - 1);
+			var addedVertices = new Dictionary<TriLines, int>();
 
 
+			for (var i = 0; i < inTriangles.Count; i += 3)
+			{
+				var index0 = inTriangles[i];
+				var index1 = inTriangles[i+1];
+				var index2 = inTriangles[i+2];
+
+
+				var triLine01 = new TriLines(index0, index1);
+				var triLine12 = new TriLines(index1, index2);
+				var triLine20 = new TriLines(index2, index0);
+
+				if(!addedVertices.TryGetValue(triLine01, out var index01))
+				{
+					var v = NoiseVertex + (finalVertices[index0] + finalVertices[index1]) / 2f;
+					index01 = finalVertices.Count;
+					finalVertices.Add(v);
+					addedVertices.Add(triLine01, index01);
+				}
+				if (!addedVertices.TryGetValue(triLine12, out var index12))
+				{
+					var v = NoiseVertex +(finalVertices[index1] + finalVertices[index2]) / 2f;
+					index12 = finalVertices.Count;
+					finalVertices.Add(v);
+					addedVertices.Add(triLine12, index12);
+				}
+				if (!addedVertices.TryGetValue(triLine20, out var index20))
+				{
+					var v = NoiseVertex + (finalVertices[index2] + finalVertices[index0]) / 2f;
+					index20 = finalVertices.Count;
+					finalVertices.Add(v);
+					addedVertices.Add(triLine20, index20);
+				}
+
+				var center = NoiseVertex + (finalVertices[index0] + finalVertices[index1] + finalVertices[index2]) / 3f;
+				var centerIndex = finalVertices.Count;
+				finalVertices.Add(center);
+
+				var tris = new List<int>()
+				{
+					index0, index01, centerIndex,
+					index01, index1, centerIndex,
+					index1, index12, centerIndex,
+					index12, index2, centerIndex,
+					index2, index20, centerIndex,
+					index20, index0, centerIndex
+				};
+				tempTriangles.AddRange(tris);
+			}
+			SubDivide(divisions - 1, tempTriangles, out finalTriangles, ref finalVertices);
 		}
 	}
 
 	private SubMesh _primaryMesh;
-
-	private List<SubMesh> _subMeshes = new();
 
 	private List<Vector3> Vertices => _primaryMesh.Vertices;
 
@@ -255,7 +230,6 @@ public class PathRenderer : Singleton<PathRenderer>
 		{
 			Destroy(child.gameObject);
 		}
-		_subMeshes.Clear();
 	}
 
 	public void Generate()

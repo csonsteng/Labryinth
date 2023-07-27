@@ -1010,8 +1010,6 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   CeilingHeight: 7
   WicketWidth: 7
-  uFactor: 1
-  vFactor: 1
   ColliderTemplate: {fileID: 45664750}
   Material: {fileID: 2100000, guid: 51f53c7e6c392fa46bbb8770d086ad7a, type: 2}
 --- !u!1 &705507993
