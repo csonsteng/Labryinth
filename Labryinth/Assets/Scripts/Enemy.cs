@@ -6,12 +6,16 @@ using UnityEditor.Experimental.GraphView;
 using UnityEngine;
 using UnityEngine.AI;
 using UnityEngine.Android;
+using UnityEngine.Experimental.AI;
 using UnityEngine.UIElements;
 
 public class Enemy : Singleton<Enemy>
 {
 	[SerializeField] private float _sightRange = 20f;
 	[SerializeField] private float _smellRange = 50f;
+	[SerializeField] private float _wanderSpeed = 10f;
+	[SerializeField] private float _huntSpeed = 15f;
+	[SerializeField] private float _chaseSpeed = 25f;
 
 	public TextMeshProUGUI DebugText;
 	/*
@@ -23,8 +27,8 @@ public class Enemy : Singleton<Enemy>
 		Once speed is up, does not slow down until outside of the lesser scent.
 	*/
 
-	// todo: scrap all nav mesh shit
-	// enemy will a star between nodes when wandering + hunting.
+	// todo:
+	// 
 	// when chasing, do a cross product between the direction to player and direction to nearest node.
 	// move a vector that is partially towards the player and partially towards the node based on the cross product.
 	// (cross product is assessing how colinear the lines are. colinear = 0)
@@ -35,6 +39,10 @@ public class Enemy : Singleton<Enemy>
 
 	// also can probably find where we are on the map by checking our radius and angle.
 	// this way we don't have to rely on a collider in each node that may or may not be bypassed
+
+	// potential: pre-bake all paths, so we can look up paths rather than calc every time. only n*n potential paths
+
+	// also need smarter wandering, so we don't get stuck in areas of the cave. 
 
 
 	/// <summary>
@@ -62,15 +70,12 @@ public class Enemy : Singleton<Enemy>
 	private bool _playerInVision = false;
 	private Vector3 _cachedTarget;
 
-	private NavMeshAgent _agent;
-
 	private List<NodeAddress> _huntPath = new();
 	private int _layerMask;
 
 	public void Spawn()
 	{
 		_layerMask = LayerMask.GetMask(new string[] { "Characters" });
-		_agent = GetComponent<NavMeshAgent>();
 		_currentNode = Maze.EndNode;
 		_lastNode = Maze.EndNode;
 		_targetNode = Maze.EndNode;
@@ -108,6 +113,20 @@ public class Enemy : Singleton<Enemy>
 		{
 			OnTargetReached();
 		}
+		Move();
+	}
+
+	private void Move()
+	{
+		var speed = _wanderSpeed;
+		if (_state == State.Hunting)
+		{
+			speed = _huntSpeed;
+		}else if (_state == State.Chasing)
+		{
+			speed = _chaseSpeed;
+		}
+		transform.position += speed * Time.deltaTime * VectorToTarget().normalized;
 	}
 
 
@@ -125,7 +144,6 @@ public class Enemy : Singleton<Enemy>
 		_state = State.Chasing;
 		_cachedTarget = Player.Position;
 		_playerInVision = true;
-		_agent.SetDestination(_cachedTarget);
 	}
 
 	private void WaitInFrustration()
@@ -205,14 +223,16 @@ public class Enemy : Singleton<Enemy>
 	{
 		_state = State.Frustrated;
 		_frustrationTime = 5f; // todo: make this scale based on how long the chase was
+		_wanderNodes.Clear();
 	}
 
 	private void Hunt()
 	{
 		// todo: animation delay while tries to find correct direction.
 		_state = State.Hunting;
+		_wanderNodes.Clear();
 
-		if(DistanceToPlayer > _smellRange)	// if we can smell the player, we want to update our path. otherwise keep the sme hunt
+		if (DistanceToPlayer > _smellRange)	// if we can smell the player, we want to update our path. otherwise keep the sme hunt
 		{
 			TargetNextHuntPathPoint();
 			return;
@@ -231,21 +251,31 @@ public class Enemy : Singleton<Enemy>
 		_lastNode = _currentNode;
 		_cachedTarget = Maze.NodeMap[_huntPath[0]].Position;
 		_huntPath.RemoveAt(0);
-		_agent.SetDestination(_cachedTarget);
 	}
+
+	private Dictionary<NodeAddress, List<NodeAddress>> _wanderNodes = new();
 
 	private void Wander()
 	{
-		if(!_currentNode.TryGetRandomTraversableNeighbor(out var targetNodeAddress, new List<NodeAddress> { _lastNode.Address }))
+		if(!_wanderNodes.TryGetValue(_currentNode.Address, out var visitedNeighbors))
 		{
+			visitedNeighbors = new List<NodeAddress>();
+			_wanderNodes[_currentNode.Address] = visitedNeighbors;
+		}
+
+
+		if(!_currentNode.TryGetRandomTraversableNeighbor(out var targetNodeAddress, visitedNeighbors))
+		{
+			visitedNeighbors.Clear(); // we've been to all traversable neighbors recently
+			Debug.Log("clearing neighbors");
 			if(!_currentNode.TryGetRandomTraversableNeighbor(out targetNodeAddress)){
 				throw new System.Exception("$Enemy's current node has no traversable neighbors {_currentNode}");
 			}
 		}
+		visitedNeighbors.Add(targetNodeAddress);
 		_lastNode = _currentNode;
 		_state = State.Wandering;
 		_targetNode = Maze.NodeMap[targetNodeAddress];
 		_cachedTarget = _targetNode.Position;
-		_agent.SetDestination(_cachedTarget);
 	}
 }

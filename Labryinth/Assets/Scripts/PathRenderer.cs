@@ -152,7 +152,7 @@ public class PathRenderer : Singleton<PathRenderer>
 
 		private Vector3 AddNoise(Vector3 baseVertex)
 		{
-			var isFloorOrCeiling = baseVertex.y < 0.5f || baseVertex.y > _ceilingHeight - 1f;
+			var isFloorOrCeiling = baseVertex.y < 1.5f || baseVertex.y > _ceilingHeight - 1f;
 			var lateralOffset = isFloorOrCeiling ? 0f : 0.35f;
 			var yOffset = isFloorOrCeiling ? 0.15f : 0f; 
 			return baseVertex + new Vector3(UnityEngine.Random.Range(-lateralOffset, lateralOffset), UnityEngine.Random.Range(-yOffset, yOffset), UnityEngine.Random.Range(-lateralOffset, lateralOffset));
@@ -610,7 +610,7 @@ public class PathRenderer : Singleton<PathRenderer>
 
 	private List<Vector3> GetPlanarVertices(Vector3 basePoint, Vector3 normal)
 	{
-		var perpindicular = basePoint.PerpindicularTo(normal);
+		var perpindicular = basePoint.PerpindicularTo(new Vector3(normal.x, 0f, normal.z)).normalized;
 		var ceilingType = UnityEngine.Random.Range(0, 3);
 		var ceilingOffset = UnityEngine.Random.Range(0f, 1f);
 		switch (ceilingType)
