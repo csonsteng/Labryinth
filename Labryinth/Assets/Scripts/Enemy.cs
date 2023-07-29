@@ -126,7 +126,7 @@ public class Enemy : Singleton<Enemy>
 		}
 
 		// todo: since node addresses are in radial coordinates, we should be able to move along the curvature of the maze to make movement look more natural
-
+		// good idea, buuuuuut our maze isn't actually made as a circle. Enemy ends up pathing outside the walls. Straight lines better (and easier)
 		transform.position += speed * Time.deltaTime * VectorToTarget().normalized;
 	}
 
