@@ -34,7 +34,7 @@ public class InteractableManager : Singleton<InteractableManager>
 			UpdateTargetInteractable(null);
 			return;
 		}
-		Debug.Log(hitInfo.collider.gameObject.name);
+
 		if (CheckTargetInteractable(hitInfo))
 		{
 			return;

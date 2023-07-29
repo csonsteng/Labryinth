@@ -9,7 +9,8 @@ public class Node
 	private float? x;
 	private float? y;
 
-	public List<NodeAddress> Neighbors = new();
+	public List<NodeAddress> AllNeighbors = new();
+	public List<NodeAddress> AccessibleNeighbors = new();
 
 	public GameObject GameObject;
 	public Vector3 Position => _position;
@@ -27,8 +28,6 @@ public class Node
 		Address = address;
 	}
 
-	public bool IsNeighbor(NodeAddress node) => Neighbors.Contains(node);
-
 	public void SetWorldPosition(float scale)
 	{
 		_position = new Vector3(X * scale, 0f, Y * scale);
@@ -38,10 +37,18 @@ public class Node
 		}
 	}
 
-	public bool TryGetRandomNeighbor(out NodeAddress address, List<NodeAddress> exclusionList = null)
-	{
 
-		var neighbors = GetNeighborsWithExclusion(exclusionList);
+
+	public bool TryGetRandomTraversableNeighbor(out NodeAddress address, List<NodeAddress> exclusionList = null)
+	{
+		var neighbors = new List<NodeAddress>();
+		foreach (var neighbor in AccessibleNeighbors)
+		{
+			if (exclusionList == null || !exclusionList.Contains(neighbor))
+			{
+				neighbors.Add(neighbor);
+			}
+		}
 		if (neighbors.Count == 0)
 		{
 			address = new NodeAddress(0, 0f);
@@ -50,45 +57,6 @@ public class Node
 		var index = Random.Range(0, neighbors.Count);
 		address = neighbors[index];
 		return true;
-	}
-
-	public bool TryGetRandomTraversableNeighbor(out NodeAddress address, List<NodeAddress> exclusionList = null)
-	{
-		var neighbors = GetNeighborsWithExclusion(exclusionList);
-		if (neighbors.Count == 0)
-		{
-			address = new NodeAddress(0, 0f);
-			return false;
-		}
-		var pathableNeighbors = new List<NodeAddress>();
-		foreach(var neighbor in neighbors)
-		{
-			if(Maze.Paths.ContainsKey(new PathID(Address, neighbor)))
-			{
-				pathableNeighbors.Add(neighbor);
-			}
-		}
-		if (pathableNeighbors.Count == 0)
-		{
-			address = new NodeAddress(0, 0f);
-			return false;
-		}
-		var index = Random.Range(0, pathableNeighbors.Count);
-		address = pathableNeighbors[index];
-		return true;
-	}
-
-	private List<NodeAddress> GetNeighborsWithExclusion(List<NodeAddress> exclusionList)
-	{
-		var neighbors = new List<NodeAddress>();
-		foreach (var neighbor in Neighbors)
-		{
-			if (exclusionList == null || !exclusionList.Contains(neighbor))
-			{
-				neighbors.Add(neighbor);
-			}
-		}
-		return neighbors;
 	}
 
 	public float X => CalculateX();

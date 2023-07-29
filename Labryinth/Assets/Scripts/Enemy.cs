@@ -1,6 +1,7 @@
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text;
 using TMPro;
 using UnityEditor.Experimental.GraphView;
 using UnityEngine;
@@ -83,11 +84,6 @@ public class Enemy : Singleton<Enemy>
 		FindNewTarget();
 	}
 
-	public void InformOfPosition(NodeAddress newAddress)
-	{
-		_currentNode = Maze.NodeMap[newAddress];
-	}
-
 	private void Update()
 	{
 
@@ -102,6 +98,8 @@ public class Enemy : Singleton<Enemy>
 		{
 			Chase();
 		}
+		// we should switch to hunting if we ever smell the player. Right now they wait till intersections to be able to smell
+		// maybe scent range increases when hunting at an intersection? They need some passive scent though
 
 		if (_state == State.Frustrated)	// frustration delay
 		{
@@ -126,6 +124,9 @@ public class Enemy : Singleton<Enemy>
 		{
 			speed = _chaseSpeed;
 		}
+
+		// todo: since node addresses are in radial coordinates, we should be able to move along the curvature of the maze to make movement look more natural
+
 		transform.position += speed * Time.deltaTime * VectorToTarget().normalized;
 	}
 
@@ -198,6 +199,7 @@ public class Enemy : Singleton<Enemy>
 
 	private void FindNewTarget()
 	{
+		UpdateCurrentNode();
 		if (WithinHuntRange)
 		{
 			Hunt();
@@ -238,9 +240,14 @@ public class Enemy : Singleton<Enemy>
 			return;
 		}
 
-		if(!Maze.Instance.TryFindPath(_currentNode.Address, Player.LastNodeAddress, out _huntPath))
+		if(!Maze.Instance.TryGetNearestNode(Player.Position, out var closestPlayerNode))
 		{
-			throw new System.Exception($"Cannot find path from {_currentNode.Address} to {Player.LastNodeAddress}");
+			throw new System.Exception($"Enemy has no fucking clue where the player node is {closestPlayerNode.Address}");
+		}
+
+		if(!Maze.Instance.TryFindPath(_currentNode.Address, closestPlayerNode.Address, out _huntPath))
+		{
+			throw new System.Exception($"Cannot find path from {_currentNode.Address} to {closestPlayerNode.Address}");
 		}
 
 		TargetNextHuntPathPoint();
@@ -264,18 +271,53 @@ public class Enemy : Singleton<Enemy>
 		}
 
 
-		if(!_currentNode.TryGetRandomTraversableNeighbor(out var targetNodeAddress, visitedNeighbors))
+		if (!_currentNode.TryGetRandomTraversableNeighbor(out var targetNodeAddress, visitedNeighbors))
 		{
 			visitedNeighbors.Clear(); // we've been to all traversable neighbors recently
 			Debug.Log("clearing neighbors");
-			if(!_currentNode.TryGetRandomTraversableNeighbor(out targetNodeAddress)){
-				throw new System.Exception("$Enemy's current node has no traversable neighbors {_currentNode}");
+			if (!_currentNode.TryGetRandomTraversableNeighbor(out targetNodeAddress))
+			{
+				throw new System.Exception($"Enemy's current node has no traversable neighbors {_currentNode}");
+			}
+			if (_wanderNodes.TryGetValue(targetNodeAddress, out var neighborsToClear))
+			{
+				neighborsToClear.Clear();   // will clear the target before readding ourself, so we can't get stuck in ends of paths
+											// This still needs to be smarter about treating things as entire links of the maze for retraversal
+											// maybe for now we just make it so they find the nearest unvisited node to target?
 			}
 		}
+		var choice = new StringBuilder();
+		choice.Append($"going from {_currentNode.Address} to {targetNodeAddress}.\nVisited neighbors are:");
+		foreach(var n in visitedNeighbors)
+		{
+			choice.Append($" {n},");
+		}
+		if (visitedNeighbors.Count == 0)
+		{
+			choice.Append(" NONE");
+		}
+		Debug.Log(choice.ToString());
+
 		visitedNeighbors.Add(targetNodeAddress);
+		if (!_wanderNodes.TryGetValue(targetNodeAddress, out var visitedTargetNeighbors))
+		{
+			visitedTargetNeighbors = new List<NodeAddress>();
+			_wanderNodes[targetNodeAddress] = visitedTargetNeighbors;
+		}
+		visitedTargetNeighbors.Add(_currentNode.Address);
+
 		_lastNode = _currentNode;
 		_state = State.Wandering;
 		_targetNode = Maze.NodeMap[targetNodeAddress];
 		_cachedTarget = _targetNode.Position;
+	}
+
+	private void UpdateCurrentNode()
+	{
+		if(!Maze.Instance.TryGetNearestNode(transform.position, out var nearestNode))
+		{
+			throw new System.Exception($"Enemy has no fucking clue where they are {nearestNode.Address}");
+		}
+		_currentNode = nearestNode;
 	}
 }

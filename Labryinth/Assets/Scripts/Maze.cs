@@ -41,6 +41,8 @@ public class Maze: Singleton<Maze>
 
 	private Pathfinder _pathFinder;
 
+	public float Scale;
+
 	public void CreatePathfinder()
 	{
 		_pathFinder = new Pathfinder();
@@ -53,5 +55,42 @@ public class Maze: Singleton<Maze>
 		var allNodes = NodeMap.Keys.ToArray();
 		var index = Random.Range(0, allNodes.Length);
 		return allNodes[index];
+	}
+
+	public bool TryGetNearestNode(Vector3 position, out Node node)
+	{
+		var x = position.x / Scale;
+		var y = position.z / Scale;
+
+		var r = Mathf.RoundToInt(Mathf.Sqrt(x * x + y * y));
+		var theta = Mathf.Atan2(y, x) * Mathf.Rad2Deg;
+
+		if (theta < 0)
+		{
+			theta += 360f;
+		}
+
+
+		var layerDivisions = Mathf.Pow(2, (2 + Mathf.FloorToInt(r / 2f)));
+		var step = 360f / layerDivisions;
+
+		var steps = Mathf.RoundToInt(theta / step);
+
+		var closestTheta = steps * step;
+
+		if (Mathf.Approximately(closestTheta, 360f))
+		{
+			closestTheta = 0f;
+		}
+
+		var nodeAddress = new NodeAddress(r, closestTheta);
+
+		if(!NodeMap.TryGetValue(nodeAddress, out node))
+		{
+			node = new Node(nodeAddress);
+			return false;
+		}
+		return true;
+
 	}
 }

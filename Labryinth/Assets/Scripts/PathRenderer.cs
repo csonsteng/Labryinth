@@ -249,18 +249,13 @@ public class PathRenderer : Singleton<PathRenderer>
 		{
 			var adjacentWickets = new List<Wicket>();
 
-			foreach (var neighborAddress in currentNode.Neighbors)
+			foreach (var neighborAddress in currentNode.AccessibleNeighbors)
 			{
-				var pathID = new PathID(currentNodeAddress, neighborAddress);
-
-				if (Maze.Paths.TryGetValue(pathID, out _))
-				{
-					// Make the closest wicket at each intersection
-					var neighborNode = Maze.NodeMap[neighborAddress];
-					var wicket = MakeWicket(currentNode.Position, neighborNode.Position, 0.22f);
-					currentNode.Wickets[neighborAddress] = wicket;
-					adjacentWickets.Add(wicket);
-				}
+				// Make the closest wicket at each intersection
+				var neighborNode = Maze.NodeMap[neighborAddress];
+				var wicket = MakeWicket(currentNode.Position, neighborNode.Position, 0.22f);
+				currentNode.Wickets[neighborAddress] = wicket;
+				adjacentWickets.Add(wicket);		
 			}
 
 			if(adjacentWickets.Count == 0)
@@ -363,7 +358,7 @@ public class PathRenderer : Singleton<PathRenderer>
 		{
 			var adjacentWickets = new List<Wicket>();
 
-			foreach (var neighborAddress in currentNode.Neighbors)
+			foreach (var neighborAddress in currentNode.AccessibleNeighbors)
 			{
 				var neighborNode = Maze.NodeMap[neighborAddress];
 				var pathID = new PathID(currentNodeAddress, neighborAddress);
@@ -372,15 +367,14 @@ public class PathRenderer : Singleton<PathRenderer>
 				{
 					continue;
 				}
-				if (Maze.Paths.TryGetValue(pathID, out var path))
-				{
-					var wicket1 = currentNode.Wickets[neighborAddress];
-					var wicket2 = MakeWicket(currentNode.Position, neighborNode.Position, 0.5f);
-					var wicket3 = neighborNode.Wickets[currentNodeAddress];
 
-					AddTriangles(wicket1, wicket2);
-					AddTriangles(wicket2, wicket3, true);
-				}
+				var wicket1 = currentNode.Wickets[neighborAddress];
+				var wicket2 = MakeWicket(currentNode.Position, neighborNode.Position, 0.5f);
+				var wicket3 = neighborNode.Wickets[currentNodeAddress];
+
+				AddTriangles(wicket1, wicket2);
+				AddTriangles(wicket2, wicket3, true);
+				
 				checkedPaths.Add(pathID);
 			}
 

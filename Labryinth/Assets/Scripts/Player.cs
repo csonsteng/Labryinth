@@ -18,11 +18,9 @@ public class Player : Singleton<Player>
 	public static Vector3 Position => Instance.gameObject.transform.position;
 	public static Vector3 FacingDirection => Instance._facingDirection;
 
-	public static NodeAddress LastNodeAddress => Instance._currentNode;
 
 	private bool _canInteract = false;
 	private Vector3 _facingDirection;
-	private NodeAddress _currentNode;
 
 	private void Awake()
 	{
@@ -31,7 +29,6 @@ public class Player : Singleton<Player>
 	public void Initialize()
 	{
         transform.position = Maze.StartNode.Position + new Vector3(0f, 1f, 0f);
-		_currentNode = Maze.StartNode.Address;
         transform.localEulerAngles = Vector3.zero;
 		_characterCamera.transform.localEulerAngles = Vector3.zero;
 		_settings = Settings.Instance.PlayerSettings;
@@ -39,10 +36,6 @@ public class Player : Singleton<Player>
 		_canInteract = true;
 	}
 
-	public void InformOfPosition(NodeAddress newAddress)
-	{
-		_currentNode = newAddress;
-	}
 	private void Update()
 	{
 		if (Input.GetKeyDown(KeyCode.Escape)) { }//Time.timeScale = 0f; }
@@ -109,4 +102,5 @@ public class Player : Singleton<Player>
 
 		Debug.DrawRay(transform.position, _facingDirection, Color.green);
 	}
+
 }

@@ -10,12 +10,11 @@ public class MazeGenerator : Singleton<MazeGenerator>
 	[SerializeField] private int _size = 4;
 	[SerializeField] private float _scale = 10f;
 
-	// templates and materials are for debug purposes
-	[SerializeField] private GameObject _nodeObjectTemplate;
+	//[SerializeField] private GameObject _nodeObjectTemplate;
 	[SerializeField] private GameObject _pathObjectTemplate;
 
-	[SerializeField] private Material _startMaterial;
-	[SerializeField] private Material _endMaterial;
+	//[SerializeField] private Material _startMaterial;
+	//[SerializeField] private Material _endMaterial;
 
 
 	public int Size => _size;
@@ -27,9 +26,9 @@ public class MazeGenerator : Singleton<MazeGenerator>
 	[ContextMenu("Redraw")]
 	public void Redraw()
 	{
+		Maze.Instance.Scale = _scale;
 		Clear();
 		Generate();
-		CreateNodeMarkers();
 		Maze.Instance.CreatePathfinder();
 	}
 
@@ -65,8 +64,8 @@ public class MazeGenerator : Singleton<MazeGenerator>
 
 				if (NodeMap.TryGetValue(new NodeAddress(r - 1, theta), out var neighbor))
 				{
-					node.Neighbors.Add(neighbor.Address);
-					neighbor.Neighbors.Add(node.Address);
+					node.AllNeighbors.Add(neighbor.Address);
+					neighbor.AllNeighbors.Add(node.Address);
 				}
 
 				var lastNodeTheta = theta - step;
@@ -74,14 +73,14 @@ public class MazeGenerator : Singleton<MazeGenerator>
 				{
 					lastNodeTheta += 360f;
 				}
-				node.Neighbors.Add(new NodeAddress(r, lastNodeTheta));
+				node.AllNeighbors.Add(new NodeAddress(r, lastNodeTheta));
 
 				var nextNodeTheta = theta + step;
 				if (nextNodeTheta >= 360f)
 				{
 					nextNodeTheta -= 360f;
 				}
-				node.Neighbors.Add(new NodeAddress(r, nextNodeTheta));
+				node.AllNeighbors.Add(new NodeAddress(r, nextNodeTheta));
 			}
 		}
 
@@ -96,6 +95,10 @@ public class MazeGenerator : Singleton<MazeGenerator>
 		}
 		var path = new Path(pathID);
 		CreatePathObject(path);
+
+		NodeMap[address1].AccessibleNeighbors.Add(address2);
+		NodeMap[address2].AccessibleNeighbors.Add(address1);
+
 		Paths.Add(pathID, path);
 
 		return true;
@@ -157,7 +160,7 @@ public class MazeGenerator : Singleton<MazeGenerator>
 		while (!currentStep.Address.Equals(Maze.EndNodeAddress) && attempts < maxAttempts)
 		{
 			attempts++;
-			if (!currentStep.TryGetRandomNeighbor(out var randomNeighbor, visitedList))
+			if (!TryGetRandomNeighbor(currentStep, out var randomNeighbor, visitedList))
 			{
 				var randomVisitedNode = Random.Range(0, visitedList.Count);
 				currentStep = NodeMap[visitedList[randomVisitedNode]];
@@ -187,7 +190,7 @@ public class MazeGenerator : Singleton<MazeGenerator>
 			Redraw();
 		}
 		// ensure neither the start or end nodes are dead ends
-		foreach(var neighbor in Maze.StartNode.Neighbors)
+		foreach(var neighbor in Maze.StartNode.AllNeighbors)
 		{
 			if(!Paths.ContainsKey(new PathID(Maze.StartNodeAddress, neighbor)))
 			{
@@ -196,7 +199,7 @@ public class MazeGenerator : Singleton<MazeGenerator>
 				break;
 			}
 		}
-		foreach (var neighbor in Maze.EndNode.Neighbors)
+		foreach (var neighbor in Maze.EndNode.AllNeighbors)
 		{
 			if (!Paths.ContainsKey(new PathID(Maze.EndNodeAddress, neighbor)))
 			{
@@ -213,7 +216,7 @@ public class MazeGenerator : Singleton<MazeGenerator>
 		{
 			var randomNodeAddress = Random.Range(0, visitedList.Count);
 			var randomNode = NodeMap[visitedList[randomNodeAddress]];
-			if (randomNode.TryGetRandomNeighbor(out var node, visitedList))
+			if (TryGetRandomNeighbor(randomNode, out var node, visitedList))
 			{
 				TryAddPath(randomNode.Address, node);
 				visitedList.Add(node);
@@ -227,7 +230,7 @@ public class MazeGenerator : Singleton<MazeGenerator>
 		{
 			var randomNodeAddress = Random.Range(0, visitedList.Count);
 			var randomNode = NodeMap[visitedList[randomNodeAddress]];
-			foreach (var neighbor in randomNode.Neighbors)
+			foreach (var neighbor in randomNode.AllNeighbors)
 			{
 				var pathID = new PathID(randomNode.Address, neighbor);
 				if (!TryAddPath(randomNode.Address, neighbor))
@@ -242,6 +245,27 @@ public class MazeGenerator : Singleton<MazeGenerator>
 		Logger.Log($"Start: {Maze.StartNodeAddress}, End: {Maze.EndNodeAddress}");
 	}
 
+	public bool TryGetRandomNeighbor(Node node, out NodeAddress address, List<NodeAddress> exclusionList = null)
+	{
+		var neighbors = new List<NodeAddress>();
+		foreach (var neighbor in node.AllNeighbors)
+		{
+			if (exclusionList == null || !exclusionList.Contains(neighbor))
+			{
+				neighbors.Add(neighbor);
+			}
+		}
+		if (neighbors.Count == 0)
+		{
+			address = new NodeAddress(0, 0f);
+			return false;
+		}
+		var index = Random.Range(0, neighbors.Count);
+		address = neighbors[index];
+		return true;
+	}
+
+	/*
 	private void CreateNodeMarkers()
 	{
 		_nodeObjectTemplate.SetActive(false);
@@ -249,13 +273,9 @@ public class MazeGenerator : Singleton<MazeGenerator>
 
 		foreach(var node in NodeMap.Values)
 		{
-			foreach(var neighbor in node.Neighbors)
-			{
-				if(Paths.TryGetValue(new PathID(node.Address, neighbor), out _))
-				{
-					MakeNodeGameObject(node);
-					break;
-				}
+			if(node.AccessibleNeighbors.Count > 0) 
+			{ 
+				MakeNodeGameObject(node);
 			}
 		}
 		
@@ -267,14 +287,13 @@ public class MazeGenerator : Singleton<MazeGenerator>
 	private GameObject MakeNodeGameObject(Node node)
 	{
 		var nodeObject = Instantiate(_nodeObjectTemplate, _nodeObjectTemplate.transform.parent);
-		nodeObject.GetComponent<NodeMarker>().Address = node.Address;
 		nodeObject.name = node.Address.ToString();
 		node.GameObject = nodeObject;
 		nodeObject.transform.position = node.Position;
 		nodeObject.transform.localScale = PathRenderer.Instance.WicketWidth * Vector3.one;
 		nodeObject.SetActive(true);
 		return nodeObject;
-	}
+	}*/
 
 	private void CreatePathObject(Path path)
 	{
