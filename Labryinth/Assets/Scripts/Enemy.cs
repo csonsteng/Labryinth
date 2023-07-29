@@ -188,6 +188,32 @@ public class Enemy : Singleton<Enemy>
 		Debug.DrawLine(transform.position, _cachedTarget, Color.cyan);
 		Gizmos.DrawWireSphere(transform.position, _smellRange);
 		DebugText.text = $"{_state}\ncanSee: {_playerInVision}\ndistanceToDestination: {DistanceToTarget.ToString("0.0")}";
+
+
+		foreach (var kvp in _visitedNodes)
+		{
+			switch (kvp.Value)
+			{
+				case 0:
+					continue;
+				case 1:
+					Gizmos.color = Color.green;
+					break;
+				case 2:
+					Gizmos.color = Color.yellow;
+					break;
+				case 3:
+					Gizmos.color = new Color(1f, 0.65f, 0f); // orange
+					break;
+				case 4:
+					Gizmos.color = Color.red;
+					break;
+				default:
+					Gizmos.color = Color.black;
+					break;
+			}
+			Gizmos.DrawSphere(Maze.NodeMap[kvp.Key].Position, 10f);
+		}
 	}
 
 	private float DistanceToPlayer => (Player.Position - transform.position).magnitude;
@@ -225,14 +251,14 @@ public class Enemy : Singleton<Enemy>
 	{
 		_state = State.Frustrated;
 		_frustrationTime = 5f; // todo: make this scale based on how long the chase was
-		_wanderNodes.Clear();
+		_visitedNodes.Clear();
 	}
 
 	private void Hunt()
 	{
 		// todo: animation delay while tries to find correct direction.
 		_state = State.Hunting;
-		_wanderNodes.Clear();
+		_visitedNodes.Clear();
 
 		if (DistanceToPlayer > _smellRange)	// if we can smell the player, we want to update our path. otherwise keep the sme hunt
 		{
@@ -260,51 +286,54 @@ public class Enemy : Singleton<Enemy>
 		_huntPath.RemoveAt(0);
 	}
 
-	private Dictionary<NodeAddress, List<NodeAddress>> _wanderNodes = new();
+	private Dictionary<NodeAddress, int> _visitedNodes = new();
 
 	private void Wander()
 	{
-		if(!_wanderNodes.TryGetValue(_currentNode.Address, out var visitedNeighbors))
+		if (!_visitedNodes.TryGetValue(_currentNode.Address, out var visitCount))
 		{
-			visitedNeighbors = new List<NodeAddress>();
-			_wanderNodes[_currentNode.Address] = visitedNeighbors;
+			visitCount = 0;
 		}
 
+		_visitedNodes[_currentNode.Address] = visitCount+1;
 
-		if (!_currentNode.TryGetRandomTraversableNeighbor(out var targetNodeAddress, visitedNeighbors))
+		NodeAddress targetNodeAddress = _currentNode.Address;
+		var visits = new Dictionary<int, List<NodeAddress>>();
+		foreach(var neighbor in _currentNode.AccessibleNeighbors)
 		{
-			visitedNeighbors.Clear(); // we've been to all traversable neighbors recently
-			Debug.Log("clearing neighbors");
-			if (!_currentNode.TryGetRandomTraversableNeighbor(out targetNodeAddress))
+			if(neighbor.Equals(_lastNode.Address))
 			{
-				throw new System.Exception($"Enemy's current node has no traversable neighbors {_currentNode}");
+				if (_currentNode.AccessibleNeighbors.Count > 1)
+				{
+					continue;
+				}
+				targetNodeAddress = neighbor;
+				_visitedNodes[targetNodeAddress]--; // if we're forced to turn around cause its our only option, don't penalize that node
 			}
-			if (_wanderNodes.TryGetValue(targetNodeAddress, out var neighborsToClear))
+			if(!_visitedNodes.TryGetValue(neighbor, out visitCount))
 			{
-				neighborsToClear.Clear();   // will clear the target before readding ourself, so we can't get stuck in ends of paths
-											// This still needs to be smarter about treating things as entire links of the maze for retraversal
-											// maybe for now we just make it so they find the nearest unvisited node to target?
+				visitCount = 0;
 			}
+			if(!visits.TryGetValue(visitCount, out var visitors))
+			{
+				visitors = new List<NodeAddress>();
+				visits[visitCount] = visitors;
+			}
+			visitors.Add(neighbor);
 		}
-		var choice = new StringBuilder();
-		choice.Append($"going from {_currentNode.Address} to {targetNodeAddress}.\nVisited neighbors are:");
-		foreach(var n in visitedNeighbors)
+		for(var i = 0; i < int.MaxValue; i++)
 		{
-			choice.Append($" {n},");
+			if (!visits.TryGetValue(i, out var visitors))
+			{
+				continue;
+			}
+				
+			var randomIndex = Random.Range(0, visitors.Count);
+			targetNodeAddress = visitors[randomIndex];
+			break;
 		}
-		if (visitedNeighbors.Count == 0)
-		{
-			choice.Append(" NONE");
-		}
-		Debug.Log(choice.ToString());
 
-		visitedNeighbors.Add(targetNodeAddress);
-		if (!_wanderNodes.TryGetValue(targetNodeAddress, out var visitedTargetNeighbors))
-		{
-			visitedTargetNeighbors = new List<NodeAddress>();
-			_wanderNodes[targetNodeAddress] = visitedTargetNeighbors;
-		}
-		visitedTargetNeighbors.Add(_currentNode.Address);
+		
 
 		_lastNode = _currentNode;
 		_state = State.Wandering;
