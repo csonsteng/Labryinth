@@ -212,7 +212,7 @@ public class Enemy : Singleton<Enemy>
 					Gizmos.color = Color.black;
 					break;
 			}
-			Gizmos.DrawSphere(Maze.NodeMap[kvp.Key].Position, 10f);
+			Gizmos.DrawSphere(Maze.NodeMap[kvp.Key].Position, 5f);
 		}
 	}
 

@@ -249,19 +249,24 @@ public class PathRenderer : Singleton<PathRenderer>
 		{
 			var adjacentWickets = new List<Wicket>();
 
-			foreach (var neighborAddress in currentNode.AccessibleNeighbors)
+			if(currentNode.AccessibleNeighbors.Count == 0)
+			{
+				continue;
+			}
+
+			foreach (var neighborAddress in currentNode.AllNeighbors)
 			{
 				// Make the closest wicket at each intersection
 				var neighborNode = Maze.NodeMap[neighborAddress];
 				var wicket = MakeWicket(currentNode.Position, neighborNode.Position, 0.22f);
 				currentNode.Wickets[neighborAddress] = wicket;
 				adjacentWickets.Add(wicket);		
-			}
 
-			if(adjacentWickets.Count == 0)
-			{
-				// node is not connected to the maze
-				continue;
+				var path = new PathID(currentNodeAddress, neighborAddress);
+				if(!Maze.Paths.TryGetValue(path, out _))
+				{
+					SealWicket(currentNode.Position, wicket);
+				}
 			}
 
 

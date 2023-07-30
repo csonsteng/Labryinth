@@ -48,6 +48,13 @@ public class Player : Singleton<Player>
 		UpdateCachedFacingDirection();
 	}
 
+	private void OnDrawGizmos()
+	{
+		Gizmos.color = Color.blue;
+		Gizmos.DrawSphere(transform.position, 7.5f);
+		Gizmos.DrawCube(transform.position + Quaternion.Euler(transform.localEulerAngles) * Vector3.forward * 10f, Vector3.one * 5f);
+	}
+
 	private void CheckInteractions()
 	{
 		if (Input.GetAxis("Interact") <= 0f)
