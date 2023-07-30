@@ -83,6 +83,7 @@
     <Compile Include="Assets\Scripts\PathID.cs" />
     <Compile Include="Assets\Scripts\Pathfinder.cs" />
     <Compile Include="Assets\Scripts\Extensions\ImageExtensions.cs" />
+    <Compile Include="Assets\Scripts\CaveMeshGenerator.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="Assets\TextMesh Pro\Shaders\TMPro.cginc" />

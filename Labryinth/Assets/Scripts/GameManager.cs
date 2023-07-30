@@ -7,7 +7,6 @@ using UnityEngine;
 public class GameManager : Singleton<GameManager>
 {
 	[SerializeField] private Enemy _enemy;
-	[SerializeField] private Transform _finish;
 
 	private GameState _state;
 	private GameState _suspendedState;
@@ -32,8 +31,6 @@ public class GameManager : Singleton<GameManager>
 		Cursor.lockState = CursorLockMode.Locked;
 		Cursor.visible = false;
 
-		PlaceEnd();
-
 		Player.Instance.Initialize();
 		_enemy.Spawn();
 		_state = GameState.Running;
@@ -49,21 +46,28 @@ public class GameManager : Singleton<GameManager>
 		Start();
 	}
 
-	public void GameOver()
+	public void GameLost()
 	{
 		_state = GameState.Ending;
 
 		Cursor.lockState = CursorLockMode.Confined;
 		Cursor.visible = true;
-		UIController.Instance.ShowGameOverScreen();
+		UIController.Instance.ShowGameLostScreen();
 		// todo: events system? or some better way of handling this kind of stuff
 		Player.Instance.OnGameOver();
 		Enemy.Instance.OnGameOver();
 	}
 
-	private void PlaceEnd()
+	public void GameWon()
 	{
-		_finish.localPosition = Maze.EndNode.Position;
+		_state = GameState.Ending;
+
+		Cursor.lockState = CursorLockMode.Confined;
+		Cursor.visible = true;
+		UIController.Instance.ShowGameWonScreen();
+		// todo: events system? or some better way of handling this kind of stuff
+		Player.Instance.OnGameOver();
+		Enemy.Instance.OnGameOver();
 	}
 
 	private void OnApplicationPause(bool pause) => SetPauseState(pause);
@@ -74,7 +78,7 @@ public class GameManager : Singleton<GameManager>
 	{
 		if (paused)
 		{
-			Time.timeScale = 0f;
+			//Time.timeScale = 0f;
 			_suspendedState = _state;
 			_state = GameState.Paused;
 			return;

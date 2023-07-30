@@ -4,13 +4,11 @@ using UnityEngine;
 
 public class Finish : MonoBehaviour
 {
-	private void Awake()
+	private void OnTriggerEnter(Collider other)
 	{
-		GetComponentInChildren<Interactable>().SetInteractAction(EndReached);
-	}
-
-	private void EndReached()
-	{
-		Debug.Log("you have escaped!");
+		if (other.gameObject.CompareTag("Player"))
+		{
+			GameManager.Instance.GameWon();
+		}
 	}
 }

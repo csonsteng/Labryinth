@@ -4,233 +4,20 @@ using System.Linq;
 using System.Text;
 using UnityEditor.UIElements;
 using UnityEngine;
+using UnityEngine.AI;
 
 public class PathRenderer : Singleton<PathRenderer>
 {
+	private CaveMeshGenerator _caveMeshGenerator;
 
-	/* I have a list of nodes and paths connecting them
-	 * Lets start by making 3 wickets on each path ID 
-	 * 
-	 *		*****
-	 *		*   *
-	 *		*   *
-	 * 
-	 *  Each wicket will just have the 4 corners for now
-	 * 
-	 * 
-	 * 
-	 * One in the middle, and one near each edge
-	 * And then at each node, i need to connect all of the adjacent wickets
-	 */
-
-	private class SubMesh
-	{
-		private List<Vector3> _vertices = new();
-		private List<int> _triangles = new();
-		public readonly string _name;
-
-
-		public SubMesh(string name)
-		{
-			_name = name;
-		}
-
-		public List<Vector3> Vertices => _vertices;
-
-		public void Add(Vector3 vertex) => _vertices.Add(vertex);
-		public void Add(List<Vector3> vertices) => _vertices.AddRange(vertices);
-		public void Add(List<int> indices)
-		{
-			_triangles.AddRange(indices);
-		}
-
-		public void FetchMeshData(out List<Vector3> vertices, out List<int> triangles)
-		{
-			CleanseUnusedVertices();
-			vertices = _vertices;
-			triangles = _triangles;
-		}
-
-		private void CleanseUnusedVertices()
-		{
-			var vertices = new List<Vector3>();
-			var vertexMapping = new Dictionary<int, int>();
-			var tris = new List<int>();
-
-			foreach (var tri in _triangles)
-			{
-				if (!vertexMapping.TryGetValue(tri, out var newVertexValue))
-				{
-					newVertexValue = vertices.Count;
-					vertices.Add(_vertices[tri]);
-					vertexMapping[tri] = newVertexValue;
-				}
-				tris.Add(newVertexValue);
-			}
-			_triangles = tris;
-			_vertices = vertices;
-		}
-
-	}
-
-	private class MeshGenerator
-	{
-		private float _ceilingHeight;
-		private readonly List<Vector3> _vertices = new();
-		private readonly List<int> _triangles = new();
-		private readonly List<SubMesh> _subMeshes = new();
-		private readonly string _name;
-
-		public MeshGenerator(string name, float ceilingHeight)
-		{
-			_name = name;
-			_ceilingHeight = ceilingHeight;
-		}
-
-		public void AddSubMesh(SubMesh subMesh) => _subMeshes.Add(subMesh);
-		public void AddSubMeshes(List<SubMesh> subMeshes) => _subMeshes.AddRange(subMeshes);
-
-		public void Generate(Transform parentTransform, Material material)
-		{
-			foreach(var subMesh in _subMeshes)
-			{
-				subMesh.FetchMeshData(out var subMeshVertices, out var subMeshTriangles);
-				var startingVerticeCount =_vertices.Count;
-				_vertices.AddRange(subMeshVertices);
-				foreach(var tri in subMeshTriangles)
-				{
-					_triangles.Add(tri + startingVerticeCount);
-				}
-			}
-
-			var meshObject = new GameObject($"{_name}_Mesh")
-			{
-				layer = LayerMask.NameToLayer("Walls")
-			};
-			meshObject.transform.parent = parentTransform;
-			meshObject.transform.localScale = Vector3.one;
-			meshObject.transform.localPosition = Vector3.zero;
-			meshObject.transform.eulerAngles = Vector3.zero;
-
-			var vertices = new List<Vector3>();
-			vertices.AddRange(_vertices);
-
-			SubDivide(2, _triangles, out var finalTriangles, ref vertices);
-
-			var mesh = new Mesh
-			{
-				vertices = vertices.ToArray(),
-				triangles = finalTriangles.ToArray(),
-				name = $"{_name}"
-			};
-
-			mesh.RecalculateBounds();
-			mesh.RecalculateNormals();
-			mesh.RecalculateTangents();
-
-			meshObject.AddComponent<MeshFilter>().mesh = mesh;
-			meshObject.AddComponent<MeshRenderer>().material = new Material(material);
-			meshObject.AddComponent<MeshCollider>().sharedMesh = mesh;
-		}
-
-		public struct TriLines
-		{
-			public int Index1;
-			public int Index2;
-
-			public TriLines(int index1, int index2)
-			{
-				if(index2 > index1)
-				{
-					Index1 = index1; Index2 = index2;
-				} else
-				{
-					Index1 = index2; Index2 = index1;
-				}
-			}
-		}
-
-		private Vector3 AddNoise(Vector3 baseVertex)
-		{
-			var isFloorOrCeiling = baseVertex.y < 1.5f || baseVertex.y > _ceilingHeight - 1f;
-			var lateralOffset = isFloorOrCeiling ? 0f : 0.35f;
-			var yOffset = isFloorOrCeiling ? 0.15f : 0f; 
-			return baseVertex + new Vector3(UnityEngine.Random.Range(-lateralOffset, lateralOffset), UnityEngine.Random.Range(-yOffset, yOffset), UnityEngine.Random.Range(-lateralOffset, lateralOffset));
-		}
-
-		private void SubDivide(int divisions, List<int> inTriangles, out List<int> finalTriangles, ref List<Vector3> finalVertices)
-		{
-			if (divisions == 0)
-			{
-				finalTriangles = inTriangles;
-				return;
-			}
-			var tempTriangles = new List<int>();
-
-			var addedVertices = new Dictionary<TriLines, int>();
-
-
-			for (var i = 0; i < inTriangles.Count; i += 3)
-			{
-				var index0 = inTriangles[i];
-				var index1 = inTriangles[i+1];
-				var index2 = inTriangles[i+2];
-
-
-				var triLine01 = new TriLines(index0, index1);
-				var triLine12 = new TriLines(index1, index2);
-				var triLine20 = new TriLines(index2, index0);
-
-				if(!addedVertices.TryGetValue(triLine01, out var index01))
-				{
-					var v = AddNoise((finalVertices[index0] + finalVertices[index1]) / 2f);
-					index01 = finalVertices.Count;
-					finalVertices.Add(v);
-					addedVertices.Add(triLine01, index01);
-				}
-				if (!addedVertices.TryGetValue(triLine12, out var index12))
-				{
-					var v = AddNoise((finalVertices[index1] + finalVertices[index2]) / 2f);
-					index12 = finalVertices.Count;
-					finalVertices.Add(v);
-					addedVertices.Add(triLine12, index12);
-				}
-				if (!addedVertices.TryGetValue(triLine20, out var index20))
-				{
-					var v = AddNoise((finalVertices[index2] + finalVertices[index0]) / 2f);
-					index20 = finalVertices.Count;
-					finalVertices.Add(v);
-					addedVertices.Add(triLine20, index20);
-				}
-
-				var center = AddNoise((finalVertices[index0] + finalVertices[index1] + finalVertices[index2]) / 3f);
-				var centerIndex = finalVertices.Count;
-				finalVertices.Add(center);
-
-				var tris = new List<int>()
-				{
-					index0, index01, centerIndex,
-					index01, index1, centerIndex,
-					index1, index12, centerIndex,
-					index12, index2, centerIndex,
-					index2, index20, centerIndex,
-					index20, index0, centerIndex
-				};
-				tempTriangles.AddRange(tris);
-			}
-			SubDivide(divisions - 1, tempTriangles, out finalTriangles, ref finalVertices);
-		}
-	}
-
-	private SubMesh _primaryMesh;
-
-	private List<Vector3> Vertices => _primaryMesh.Vertices;
+	private List<Vector3> Vertices => _caveMeshGenerator.Vertices;
 
 	public float CeilingHeight = 6f;
 	public float WicketWidth = 7f;
 
 	public GameObject ColliderTemplate;
-	public Material Material;
+	public Material CaveMaterial;
+	public Material FinishMaterial;
 
 	public void Destroy()
 	{
@@ -242,7 +29,7 @@ public class PathRenderer : Singleton<PathRenderer>
 
 	public void Generate()
 	{
-		_primaryMesh = new SubMesh("Walls");
+		_caveMeshGenerator = new CaveMeshGenerator("Cave", CeilingHeight);
 
 
 		foreach ((var currentNodeAddress, var currentNode) in Maze.NodeMap)
@@ -254,7 +41,37 @@ public class PathRenderer : Singleton<PathRenderer>
 				continue;
 			}
 
-			foreach (var neighborAddress in currentNode.AllNeighbors)
+			var neighborList = currentNode.AllNeighbors;
+			if (currentNodeAddress == Maze.EndNodeAddress)
+			{
+				neighborList = currentNode.AccessibleNeighbors;
+				var singleNeighbor = currentNode.AccessibleNeighbors[0];
+				int endBranchRadius;
+				float endBranchTheta;
+				if(singleNeighbor.Theta == currentNodeAddress.Theta)
+				{
+					endBranchRadius = currentNodeAddress.Radius + (currentNodeAddress.Radius - singleNeighbor.Radius);
+					endBranchTheta = singleNeighbor.Theta;
+				} else
+				{
+					endBranchRadius = currentNodeAddress.Radius;
+					endBranchTheta = currentNodeAddress.Theta + (currentNodeAddress.Theta - singleNeighbor.Theta);
+				}
+				var endBranchNodeAddress = new NodeAddress(endBranchRadius, endBranchTheta);
+				if(!Maze.NodeMap.TryGetValue(endBranchNodeAddress, out var endBranchNode))
+				{
+					endBranchNode = new Node(endBranchNodeAddress);
+					endBranchNode.SetWorldPosition(MazeGenerator.Instance.Scale);
+				}
+				var wicket = MakeWicket(currentNode.Position, endBranchNode.Position, 0.60f);
+				currentNode.Wickets[endBranchNodeAddress] = wicket;
+
+				adjacentWickets.Add(wicket);
+				MakeEnd(currentNode.Position, wicket);
+			}
+
+
+			foreach (var neighborAddress in neighborList)
 			{
 				// Make the closest wicket at each intersection
 				var neighborNode = Maze.NodeMap[neighborAddress];
@@ -384,9 +201,7 @@ public class PathRenderer : Singleton<PathRenderer>
 			}
 
 		}
-		var generator = new MeshGenerator("Cave", CeilingHeight);
-		generator.AddSubMesh(_primaryMesh);
-		generator.Generate(transform, Material);
+		_caveMeshGenerator.Generate(transform, CaveMaterial);
 	}
 
 	private struct WicketConnection
@@ -463,6 +278,77 @@ public class PathRenderer : Singleton<PathRenderer>
 		AddCollider(wicket[0], wicket[3]);
 	}
 
+	private void MakeEnd(Vector3 basePoint, Wicket wicket)
+	{
+		var vertices = new List<Vector3>();
+
+		foreach (var vertexIndex in wicket.GetPoints)
+		{
+			vertices.Add(Vertices[vertexIndex]);
+		}
+
+		var plane = new Plane(vertices[0], vertices[1], vertices[3]);
+		var normalToPlane = plane.normal;
+		if (plane.GetSide(basePoint + Vector3.up))
+		{
+			normalToPlane = -normalToPlane;
+		}
+		foreach (var vertex in vertices.ToArray())
+		{
+			vertices.Add(vertex + normalToPlane * 0.05f);
+		}
+
+		var mesh = new Mesh()
+		{
+			name = "Finish",
+			vertices = vertices.ToArray(),
+			triangles = new int[]
+			{
+				0, 1, 3,
+				1, 2, 3,
+				7, 5, 4,
+				7, 6, 5,
+				3, 2, 7,
+				7, 2, 6,
+				4, 5, 0,
+				0, 5, 1,
+				1, 5, 2,
+				2, 5, 6,
+				0, 3, 4,
+				3, 7, 4
+			},
+			uv = new Vector2[]
+			{
+				Vector2.zero, Vector2.up, Vector2.one, Vector2.right,
+				Vector2.right, Vector2.one, Vector2.up, Vector2.zero
+			},
+			normals = new Vector3[]
+			{
+				-normalToPlane, -normalToPlane, -normalToPlane, -normalToPlane,
+				normalToPlane, normalToPlane, normalToPlane, normalToPlane
+			}
+			
+		};
+
+		var endObject = new GameObject("Finish", new Type[] { typeof(Finish) })
+		{
+			layer = LayerMask.NameToLayer("Walls")
+		};
+		endObject.transform.parent = transform;
+		endObject.transform.localScale = Vector3.one;
+		endObject.transform.position = Vector3.zero;
+
+		var collider = endObject.AddComponent<MeshCollider>();
+		collider.sharedMesh = mesh;
+		collider.convex = true;
+		collider.isTrigger = true;
+		var filter = endObject.AddComponent<MeshFilter>();
+		filter.sharedMesh = mesh;
+		var renderer = endObject.AddComponent<MeshRenderer>();
+		renderer.material = new Material(FinishMaterial);
+		
+	}
+
 	private void AddConnectionTriangles(Vector3 basePoint, int floorPoint, int ceilingPoint, Wicket wicket1, Wicket wicket2)
 	{
 
@@ -537,7 +423,7 @@ public class PathRenderer : Singleton<PathRenderer>
 		{
 			return;
 		}
-		_primaryMesh.Add(triangle);
+		_caveMeshGenerator.Add(triangle);
 	}
 
 
@@ -595,7 +481,7 @@ public class PathRenderer : Singleton<PathRenderer>
 
 	private void AddVertex(Vector3 vertex)
 	{
-		_primaryMesh.Add(vertex);
+		_caveMeshGenerator.Add(vertex);
 	}
 
 	private Vector3 Vector3Lerp(Vector3 start, Vector3 end, float distance)

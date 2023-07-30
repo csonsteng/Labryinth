@@ -178,7 +178,7 @@ public class Enemy : Singleton<Enemy>
 				if (_playerInVision)
 				{
 					// to do: need a non-instant death
-					GameManager.Instance.GameOver();
+					GameManager.Instance.GameLost();
 					return;
 				}
 				Frustrate();	// we lost the player (should actually hunt first here)

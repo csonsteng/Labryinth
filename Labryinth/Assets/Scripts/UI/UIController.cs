@@ -6,10 +6,13 @@ using UnityEngine;
 public class UIController : Singleton<UIController> 
 {
 	[SerializeField] private GameOverScreen _gameOverScreen;
-
-	public void ShowGameOverScreen()
+	public void ShowGameWonScreen()
 	{
-		_gameOverScreen.Show();
+		_gameOverScreen.ShowGameWon();
+	}
+	public void ShowGameLostScreen()
+	{
+		_gameOverScreen.ShowGameLost();
 	}
 	public async UniTask HideGameOverScreen()
 	{

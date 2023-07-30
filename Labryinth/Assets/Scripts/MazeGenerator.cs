@@ -140,6 +140,8 @@ public class MazeGenerator : Singleton<MazeGenerator>
 
 		Maze.StartNodeAddress = Maze.RandomNodeAddress();
 		Maze.EndNodeAddress = Maze.RandomNodeAddress();
+
+		// todo: enure sufficient distance between start and end
 		while (Maze.EndNodeAddress.Equals(Maze.StartNodeAddress))
 		{
 			Maze.EndNodeAddress = Maze.RandomNodeAddress();
@@ -199,6 +201,7 @@ public class MazeGenerator : Singleton<MazeGenerator>
 				break;
 			}
 		}
+		/*
 		foreach (var neighbor in Maze.EndNode.AllNeighbors)
 		{
 			if (!Paths.ContainsKey(new PathID(Maze.EndNodeAddress, neighbor)))
@@ -207,15 +210,20 @@ public class MazeGenerator : Singleton<MazeGenerator>
 				visitedList.Add(neighbor);
 				break;
 			}
-		}
+		}*/
 
 
 
 		// add some other random unconnected nodes to ensure a decent size
 		while (visitedList.Count < 3 * NodeMap.Keys.Count / 4)
 		{
-			var randomNodeAddress = Random.Range(0, visitedList.Count);
-			var randomNode = NodeMap[visitedList[randomNodeAddress]];
+			var randomNodeIndex = Random.Range(0, visitedList.Count);
+			var randomNodeAddress = visitedList[randomNodeIndex];
+			if (randomNodeAddress == Maze.EndNodeAddress)
+			{
+				continue;	// end node should only have one connection
+			}
+			var randomNode = NodeMap[randomNodeAddress];
 			if (TryGetRandomNeighbor(randomNode, out var node, visitedList))
 			{
 				TryAddPath(randomNode.Address, node);
@@ -228,10 +236,19 @@ public class MazeGenerator : Singleton<MazeGenerator>
 
 		for (var i = 0; i < randomAdditionalConnections; i++)
 		{
-			var randomNodeAddress = Random.Range(0, visitedList.Count);
-			var randomNode = NodeMap[visitedList[randomNodeAddress]];
+			var randomNodeIndex = Random.Range(0, visitedList.Count);
+			var randomNodeAddress = visitedList[randomNodeIndex];
+			if (randomNodeAddress == Maze.EndNodeAddress)
+			{
+				continue; // end node should only have one connection
+			}
+			var randomNode = NodeMap[randomNodeAddress];
 			foreach (var neighbor in randomNode.AllNeighbors)
 			{
+				if (neighbor == Maze.EndNodeAddress)
+				{
+					continue; // end node should only have one connection
+				}
 				var pathID = new PathID(randomNode.Address, neighbor);
 				if (!TryAddPath(randomNode.Address, neighbor))
 				{
