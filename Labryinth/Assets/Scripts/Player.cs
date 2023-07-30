@@ -22,9 +22,12 @@ public class Player : Singleton<Player>
 	private bool _canInteract = false;
 	private Vector3 _facingDirection;
 
+	private bool _initialized;
+
 	private void Awake()
 	{
 		gameObject.SetActive(false);
+		_initialized = false;
 	}
 	public void Initialize()
 	{
@@ -34,11 +37,18 @@ public class Player : Singleton<Player>
 		_settings = Settings.Instance.PlayerSettings;
         gameObject.SetActive(true);
 		_canInteract = true;
+		_initialized = true;
+	}
+
+	public void OnGameOver()
+	{
+		_initialized = false;
 	}
 
 	private void Update()
 	{
-		if (Input.GetKeyDown(KeyCode.Escape)) { }//Time.timeScale = 0f; }
+		if (!_initialized) return;
+		if (Input.GetKeyDown(KeyCode.Escape)) {  }
 		CheckInteractions();
 
 		UpdatePosition();

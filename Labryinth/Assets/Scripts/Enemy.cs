@@ -13,10 +13,11 @@ using UnityEngine.UIElements;
 public class Enemy : Singleton<Enemy>
 {
 	[SerializeField] private float _sightRange = 20f;
-	[SerializeField] private float _smellRange = 50f;
-	[SerializeField] private float _wanderSpeed = 10f;
-	[SerializeField] private float _huntSpeed = 15f;
-	[SerializeField] private float _chaseSpeed = 25f;
+	[SerializeField] private float _passiveScentRange = 50f;
+	[SerializeField] private float _activeScentRange = 100f;
+	[SerializeField] private float _wanderSpeed = 15f;
+	[SerializeField] private float _huntSpeed = 22.5f;
+	[SerializeField] private float _chaseSpeed = 30f;
 
 	public TextMeshProUGUI DebugText;
 	/*
@@ -38,12 +39,8 @@ public class Enemy : Singleton<Enemy>
 	// once reaching that point, we should continue down the same pathway until we reach an intersection
 	// only then should we hunt
 
-	// also can probably find where we are on the map by checking our radius and angle.
-	// this way we don't have to rely on a collider in each node that may or may not be bypassed
-
 	// potential: pre-bake all paths, so we can look up paths rather than calc every time. only n*n potential paths
 
-	// also need smarter wandering, so we don't get stuck in areas of the cave. 
 
 
 	/// <summary>
@@ -76,12 +73,18 @@ public class Enemy : Singleton<Enemy>
 
 	public void Spawn()
 	{
-		_layerMask = LayerMask.GetMask(new string[] { "Characters" });
+		_layerMask = LayerMask.GetMask(new string[] { "Characters", "Walls" });
 		_currentNode = Maze.EndNode;
 		_lastNode = Maze.EndNode;
 		_targetNode = Maze.EndNode;
 		transform.position = _currentNode.Position + Vector3.up;
 		FindNewTarget();
+	}
+
+	public void OnGameOver()
+	{
+		_state = State.Uninitialized;
+		_huntPath.Clear();
 	}
 
 	private void Update()
@@ -98,8 +101,6 @@ public class Enemy : Singleton<Enemy>
 		{
 			Chase();
 		}
-		// we should switch to hunting if we ever smell the player. Right now they wait till intersections to be able to smell
-		// maybe scent range increases when hunting at an intersection? They need some passive scent though
 
 		if (_state == State.Frustrated)	// frustration delay
 		{
@@ -107,7 +108,12 @@ public class Enemy : Singleton<Enemy>
 			return;
 		}
 
-		if(DistanceToTarget <=2.5f)
+		if (_state == State.Wandering && CanSensePlayer())
+		{
+			Hunt();
+		}
+
+		if (DistanceToTarget <= 2.5f)
 		{
 			OnTargetReached();
 		}
@@ -140,6 +146,12 @@ public class Enemy : Singleton<Enemy>
 		return false;
 	}
 
+	private bool CanSensePlayer()
+	{
+		// to do: I think this should actually be if we are in a node the player has been in recently
+		return DistanceToPlayer < _passiveScentRange;
+	}
+
 	private void Chase()
 	{
 		_state = State.Chasing;
@@ -165,7 +177,8 @@ public class Enemy : Singleton<Enemy>
 			case State.Chasing:
 				if (_playerInVision)
 				{
-					Debug.Log("YOU WERE CAUGHT");
+					// to do: need a non-instant death
+					GameManager.Instance.GameOver();
 					return;
 				}
 				Frustrate();	// we lost the player (should actually hunt first here)
@@ -186,8 +199,8 @@ public class Enemy : Singleton<Enemy>
 		
 		Debug.DrawLine(transform.position, transform.position + _sightRange * (Player.Position - transform.position).normalized, Color.red);
 		Debug.DrawLine(transform.position, _cachedTarget, Color.cyan);
-		Gizmos.DrawWireSphere(transform.position, _smellRange);
-		DebugText.text = $"{_state}\ncanSee: {_playerInVision}\ndistanceToDestination: {DistanceToTarget.ToString("0.0")}";
+		Gizmos.DrawWireSphere(transform.position, _passiveScentRange);
+		DebugText.text = $"{_state}\ndistanceToPlayer: {DistanceToPlayer:0.0}\ndistanceToDestination: {DistanceToTarget:0.0}";
 
 
 		foreach (var kvp in _visitedNodes)
@@ -246,7 +259,7 @@ public class Enemy : Singleton<Enemy>
 	/// <summary>
 	/// We can smell the player, or have not yet finished our last hunt
 	/// </summary>
-	private bool WithinHuntRange => DistanceToPlayer <= _smellRange	|| _huntPath.Count > 0;
+	private bool WithinHuntRange => DistanceToPlayer <= _activeScentRange || _huntPath.Count > 0;
 	private void Frustrate()
 	{
 		_state = State.Frustrated;
@@ -260,8 +273,9 @@ public class Enemy : Singleton<Enemy>
 		_state = State.Hunting;
 		_visitedNodes.Clear();
 
-		if (DistanceToPlayer > _smellRange)	// if we can smell the player, we want to update our path. otherwise keep the sme hunt
+		if (_huntPath.Count > 0 && DistanceToPlayer > _passiveScentRange)
 		{
+			// we've lost scent of the player, but still have a path
 			TargetNextHuntPathPoint();
 			return;
 		}
@@ -269,6 +283,14 @@ public class Enemy : Singleton<Enemy>
 		if(!Maze.Instance.TryGetNearestNode(Player.Position, out var closestPlayerNode))
 		{
 			throw new System.Exception($"Enemy has no fucking clue where the player node is {closestPlayerNode.Address}");
+		}
+
+		if(_currentNode == closestPlayerNode) 
+		{
+			_cachedTarget = Player.Position;
+			_huntPath.Clear();
+			_state = State.Chasing;
+			return;
 		}
 
 		if(!Maze.Instance.TryFindPath(_currentNode.Address, closestPlayerNode.Address, out _huntPath))

@@ -40,11 +40,25 @@ public class GameManager : Singleton<GameManager>
 	}
 
 	[Button]
-	public void Restart()
+	public async void Restart()
 	{
 		_state = GameState.Ending;
 		PathRenderer.Instance.Destroy();
+		await UIController.Instance.HideGameOverScreen();
+		// todo: have a seprate build and start step. (loading screen? def need a black screen)
 		Start();
+	}
+
+	public void GameOver()
+	{
+		_state = GameState.Ending;
+
+		Cursor.lockState = CursorLockMode.Confined;
+		Cursor.visible = true;
+		UIController.Instance.ShowGameOverScreen();
+		// todo: events system? or some better way of handling this kind of stuff
+		Player.Instance.OnGameOver();
+		Enemy.Instance.OnGameOver();
 	}
 
 	private void PlaceEnd()
@@ -60,6 +74,7 @@ public class GameManager : Singleton<GameManager>
 	{
 		if (paused)
 		{
+			Time.timeScale = 0f;
 			_suspendedState = _state;
 			_state = GameState.Paused;
 			return;
