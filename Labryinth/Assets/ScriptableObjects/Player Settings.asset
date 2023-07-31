@@ -15,5 +15,5 @@ MonoBehaviour:
   HorizontalSensitivity: 500
   VerticalSensitivity: 300
   WalkSpeed: 8
-  RunMultiplier: 2.7
+  RunMultiplier: 3.2
   StrafeSpeed: 3

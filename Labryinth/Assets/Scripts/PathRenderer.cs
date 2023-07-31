@@ -239,6 +239,8 @@ public class PathRenderer : Singleton<PathRenderer>
 
 	private void AddCollider(int vertex1, int vertex2)
 	{
+		return;
+		/*
 		var point1 = Vertices[vertex1];
 		var point2 = Vertices[vertex2];
 		var averagePoint = (point1 + point2) / 2f;
@@ -258,7 +260,7 @@ public class PathRenderer : Singleton<PathRenderer>
 		colliderObject.transform.localScale = new Vector3(1f, distance, 1f);
 
 		colliderObject.transform.localEulerAngles = new Vector3(90f, angle, 0f);
-		colliderObject.SetActive(true);	
+		colliderObject.SetActive(true);	*/
 		
 	}
 

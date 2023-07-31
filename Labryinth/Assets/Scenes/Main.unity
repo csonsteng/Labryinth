@@ -6689,9 +6689,9 @@ MonoBehaviour:
   _sightRange: 100
   _passiveScentRange: 50
   _activeScentRange: 100
-  _wanderSpeed: 12.5
-  _huntSpeed: 17.5
-  _chaseSpeed: 25
+  _wanderSpeed: 10
+  _huntSpeed: 15
+  _chaseSpeed: 20
   DebugText: {fileID: 1526597056}
 --- !u!23 &923632550
 MeshRenderer:
