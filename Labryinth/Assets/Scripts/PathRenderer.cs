@@ -280,18 +280,31 @@ public class PathRenderer : Singleton<PathRenderer>
 
 	private void MakeEnd(Vector3 basePoint, Wicket wicket)
 	{
-		var vertices = new List<Vector3>();
+		var center = Vector3.zero;
 
+		var vertices = new List<Vector3>();
 		foreach (var vertexIndex in wicket.GetPoints)
 		{
-			vertices.Add(Vertices[vertexIndex]);
+			var vertex = Vertices[vertexIndex];
+			vertices.Add(vertex);
+			center += Vertices[vertexIndex];
 		}
+		center /= 4f;
 
 		var plane = new Plane(vertices[0], vertices[1], vertices[3]);
 		var normalToPlane = plane.normal;
 		if (plane.GetSide(basePoint + Vector3.up))
 		{
 			normalToPlane = -normalToPlane;
+		}
+		vertices.Clear();
+		normalToPlane = new Vector3(normalToPlane.x, 0f, normalToPlane.z);
+
+		foreach (var vertexIndex in wicket.GetPoints)
+		{
+			var vertex = Vertices[vertexIndex];
+			var directionFromCenter = (vertex - center).normalized;
+			vertices.Add(vertex + 1f * directionFromCenter - normalToPlane * 0.05f);    // stretch it out
 		}
 		foreach (var vertex in vertices.ToArray())
 		{
@@ -325,7 +338,7 @@ public class PathRenderer : Singleton<PathRenderer>
 			normals = new Vector3[]
 			{
 				-normalToPlane, -normalToPlane, -normalToPlane, -normalToPlane,
-				normalToPlane, normalToPlane, normalToPlane, normalToPlane
+				normalToPlane, normalToPlane, normalToPlane, normalToPlane,
 			}
 			
 		};
@@ -345,7 +358,7 @@ public class PathRenderer : Singleton<PathRenderer>
 		var filter = endObject.AddComponent<MeshFilter>();
 		filter.sharedMesh = mesh;
 		var renderer = endObject.AddComponent<MeshRenderer>();
-		renderer.material = new Material(FinishMaterial);
+		renderer.material = FinishMaterial;
 		
 	}
 
