@@ -19,6 +19,7 @@ public class PathRenderer : Singleton<PathRenderer>
 	public Material CaveMaterial;
 	public Material FinishMaterial;
 
+	public Transform FinishFog;
 	public void Destroy()
 	{
 		foreach(Transform child in transform)
@@ -290,6 +291,8 @@ public class PathRenderer : Singleton<PathRenderer>
 			center += Vertices[vertexIndex];
 		}
 		center /= 4f;
+
+		FinishFog.position = new Vector3(center.x, 0f, center.z);
 
 		var plane = new Plane(vertices[0], vertices[1], vertices[3]);
 		var normalToPlane = plane.normal;
