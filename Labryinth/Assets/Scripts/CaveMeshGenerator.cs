@@ -50,6 +50,8 @@ public class CaveMeshGenerator
 		mesh.RecalculateNormals();
 		mesh.RecalculateTangents();
 
+		OverheadCameraView.Instance.SetCameraBounds(mesh.bounds);
+
 		meshObject.AddComponent<MeshFilter>().mesh = mesh;
 		meshObject.AddComponent<MeshRenderer>().material = new Material(material);
 		meshObject.AddComponent<MeshCollider>().sharedMesh = mesh;
