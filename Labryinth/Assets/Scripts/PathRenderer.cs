@@ -29,12 +29,50 @@ public class PathRenderer : Singleton<PathRenderer>
 		}
 	}
 
+	private class NormalMerger
+	{
+		public Mesh Mesh1;
+		public Mesh Mesh2;
+
+		public int[] Mesh1Indices;
+		public int[] Mesh2Indices;
+
+		public void Merge()
+		{
+			var mesh1Normals = Mesh1.normals;
+			var mesh2Normals = Mesh2.normals;
+			var mesh1Tangents = Mesh1.tangents;
+			var mesh2Tangents = Mesh2.tangents;
+			for (var i = 0; i < Mesh1Indices.Length; i++)
+			{
+				var normal1 = mesh1Normals[Mesh1Indices[i]];
+				var normal2 = mesh2Normals[Mesh2Indices[i]];
+				var average = (normal1 + normal2) / 2f;
+				mesh1Normals[Mesh1Indices[i]] = average;
+				mesh2Normals[Mesh2Indices[i]] = average;
+
+				var tangent1 = mesh1Tangents[Mesh1Indices[i]];
+				var tangent2 = mesh2Tangents[Mesh2Indices[i]];
+				var averageTangent = (tangent1 + tangent2) / 2f;
+				mesh1Tangents[Mesh1Indices[i]] = averageTangent;
+				mesh2Tangents[Mesh2Indices[i]] = averageTangent;
+			}
+			Mesh1.normals = mesh1Normals;
+			Mesh2.normals = mesh2Normals;
+			Mesh1.tangents = mesh1Tangents;
+			Mesh2.tangents = mesh2Tangents;
+		}
+
+
+	}
+
 	public void Generate()
 	{
 		//_caveMeshGenerator = new CaveMeshGenerator("Cave", CeilingHeight);
 
 
 		var checkedPaths = new Dictionary<PathID, Wicket>();
+		var generatedMeshes = new Dictionary<NodeAddress, Mesh>();
 		foreach ((var currentNodeAddress, var currentNode) in Maze.NodeMap)
 		{
 			var adjacentWickets = new List<Wicket>();
@@ -133,9 +171,9 @@ public class PathRenderer : Singleton<PathRenderer>
 			}
 			
 			var floorVertex = Vertices.Count;
-			AddVertex(intersectionCenter);
+			AddVertex(intersectionCenter, Vector3.up);
 			var ceilingVertex = Vertices.Count;
-			AddVertex(intersectionCenter + Vector3.up * CeilingHeight);
+			AddVertex(intersectionCenter + Vector3.up * CeilingHeight, Vector3.down);
 
 			var orderedWickets = adjacentWickets.OrderBy(wicket =>
 			{
@@ -156,6 +194,7 @@ public class PathRenderer : Singleton<PathRenderer>
 				AddConnectionTriangles(intersectionCenter, floorVertex, ceilingVertex, wicket, nextWicket);
 			}
 
+			var normalMergers = new List<NormalMerger>();
 			foreach (var neighborAddress in currentNode.AccessibleNeighbors)
 			{
 				var neighborNode = Maze.NodeMap[neighborAddress];
@@ -165,7 +204,14 @@ public class PathRenderer : Singleton<PathRenderer>
 
 				if(checkedPaths.TryGetValue(pathID, out var wicket2))
 				{
-					AddTriangles(CopyWicket(wicket2), wicket1, true);
+					var copiedWicket = CopyWicket(wicket2);
+					AddTriangles(copiedWicket, wicket1, true);
+					normalMergers.Add(new NormalMerger()
+					{
+						Mesh1 = generatedMeshes[neighborAddress],
+						Mesh1Indices = wicket2.GetPoints.ToArray(),
+						Mesh2Indices = copiedWicket.GetPoints.ToArray(),
+					});
 					continue;
 				}
 				wicket2 = MakeWicket(currentNode.Position, neighborNode.Position, 0.5f);
@@ -173,38 +219,16 @@ public class PathRenderer : Singleton<PathRenderer>
 				AddTriangles(wicket1, wicket2);
 				checkedPaths.Add(pathID, wicket2);
 			}
-			_currentMesh.Generate(transform, CaveMaterial);
-		}
-		/*
-		// add wickets in each path
-		var checkedPaths = new HashSet<PathID>();
+			var mesh = _currentMesh.Generate(transform, CaveMaterial);
 
-		foreach ((var currentNodeAddress, var currentNode) in Maze.NodeMap)
-		{
-			var adjacentWickets = new List<Wicket>();
-
-			foreach (var neighborAddress in currentNode.AccessibleNeighbors)
+			foreach(var merger in normalMergers)
 			{
-				var neighborNode = Maze.NodeMap[neighborAddress];
-				var pathID = new PathID(currentNodeAddress, neighborAddress);
-
-				if (checkedPaths.Contains(pathID))
-				{
-					continue;
-				}
-
-				var wicket1 = currentNode.Wickets[neighborAddress];
-				var wicket2 = MakeWicket(currentNode.Position, neighborNode.Position, 0.5f);
-				//var wicket3 = neighborNode.Wickets[currentNodeAddress];
-
-				AddTriangles(wicket1, wicket2);
-				//AddTriangles(wicket2, wicket3, true);
-				
-				checkedPaths.Add(pathID);
+				merger.Mesh2 = mesh;
+				merger.Merge();
 			}
 
+			generatedMeshes.Add(currentNodeAddress, mesh);
 		}
-		//_caveMeshGenerator.Generate(transform, CaveMaterial);*/
 	}
 
 	private Wicket MakeDummyEndNode(NodeAddress currentNodeAddress, Node currentNode, List<Wicket> adjacentWickets)
@@ -473,34 +497,35 @@ public class PathRenderer : Singleton<PathRenderer>
 	private Wicket MakeWicket(Vector3 start, Vector3 end, float distance)
 	{
 		var basePoint = Vector3Lerp(start, end, distance);
-		var vertices = GetPlanarVertices(basePoint, start);
+		GetPlanarVertices(basePoint, start, out var vertices, out var normals);
 
 		var indices = new List<int>();
-		foreach (var vertex in vertices)
+		for (var i = 0; i < vertices.Count; i++)
 		{
 			indices.Add(Vertices.Count);
-			AddVertex(vertex);
+			AddVertex(vertices[i], normals[i]);
 		}
-		return new Wicket(indices.ToArray(), vertices.ToArray());
+		return new Wicket(indices.ToArray(), vertices.ToArray(), normals.ToArray());
 
 	}
 
 	private Wicket CopyWicket(Wicket wicket)
 	{
-		var vertices = wicket.GetVertices;
+		var vertices = wicket.Vertices;
+		var normals = wicket.Normals;
 
 		var indices = new List<int>();
-		foreach (var vertex in vertices)
+		for (var i = 0; i < vertices.Length; i++)
 		{
 			indices.Add(Vertices.Count);
-			AddVertex(vertex);
+			AddVertex(vertices[i], normals[i]);
 		}
-		return new Wicket(indices.ToArray(), vertices.ToArray());
+		return new Wicket(indices.ToArray(), vertices, normals);
 	}
 
-	private void AddVertex(Vector3 vertex)
+	private void AddVertex(Vector3 vertex, Vector3 normal)
 	{
-		_currentMesh.Add(vertex);
+		_currentMesh.Add(vertex, normal);
 	}
 
 	private Vector3 Vector3Lerp(Vector3 start, Vector3 end, float distance)
@@ -516,9 +541,9 @@ public class PathRenderer : Singleton<PathRenderer>
 	private float HorizontalCeilingNoise => UnityEngine.Random.Range(-1f, 0.5f);
 	private float VerticalCeilingNoise => UnityEngine.Random.Range(-0.5f, 0.5f);
 
-	private List<Vector3> GetPlanarVertices(Vector3 basePoint, Vector3 normal)
+	private void GetPlanarVertices(Vector3 basePoint, Vector3 nodePoint, out List<Vector3> vertices, out List<Vector3> normals)
 	{
-		var perpindicular = basePoint.PerpindicularTo(new Vector3(normal.x, 0f, normal.z)).normalized;
+		var perpindicular = basePoint.PerpindicularTo(new Vector3(nodePoint.x, 0f, nodePoint.z)).normalized;
 		var ceilingType = UnityEngine.Random.Range(0, 3);
 		var ceilingOffset = UnityEngine.Random.Range(0f, 1f);
 		switch (ceilingType)
@@ -531,14 +556,27 @@ public class PathRenderer : Singleton<PathRenderer>
 				break;
 		}
 
-		var vertices = new List<Vector3>()
+		vertices = new List<Vector3>()
 		{
 			basePoint + perpindicular * (WicketWidth + BaseNoise),
 			basePoint + perpindicular * (0.7f * WicketWidth + HorizontalCeilingNoise) + Vector3.up*(CeilingHeight + ceilingOffset + VerticalCeilingNoise),
 			basePoint - perpindicular * (0.7f * WicketWidth + HorizontalCeilingNoise) + Vector3.up*(CeilingHeight + ceilingOffset + VerticalCeilingNoise),
 			basePoint - perpindicular * ( WicketWidth + BaseNoise),
 		};
-		return vertices;
+
+		var center = Vector3.zero;
+		foreach(var vertex in  vertices)
+		{
+			center += vertex;
+		}
+		center /= 4f;
+
+		normals = new List<Vector3>();
+
+		foreach (var vertex in vertices)
+		{
+			normals.Add((nodePoint - vertex + Vector3.up * 2f).normalized);
+		}
 	}
 
 }
@@ -546,22 +584,22 @@ public class PathRenderer : Singleton<PathRenderer>
 public class Wicket
 {
 	protected int[] Points;
-	protected Vector3[] Vertices;
+	public readonly Vector3[] Vertices;
+	public readonly Vector3[] Normals; // no longer using these, but leaving them for now in case I change my mind again
 
 	public Vector3 Vector;
 
-	public Wicket(int[] indices, Vector3[] vertices)
+	public Wicket(int[] indices, Vector3[] vertices, Vector3[] normals)
 	{
 		Points = indices;
 		Vertices = vertices;
+		Normals = normals;
 	}
 
 
 	public IEnumerable<int> GetPoints => Points;
-	public IEnumerable<Vector3> GetVertices => Vertices;
 
 	public static implicit operator int[](Wicket wicket) => wicket.Points;
-	//public static implicit operator Wicket(int[] points) => new(points);
 
 	public int this[Index index]
 	{

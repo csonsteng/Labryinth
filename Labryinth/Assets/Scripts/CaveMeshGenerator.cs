@@ -6,6 +6,7 @@ public class CaveMeshGenerator
 {
 	private readonly float _ceilingHeight;
 	private readonly List<Vector3> _vertices = new();
+	private readonly List<Vector3> _normals = new();
 	private readonly List<int> _triangles = new();
 	private readonly string _name;
 
@@ -17,13 +18,17 @@ public class CaveMeshGenerator
 
 
 	public List<Vector3> Vertices => _vertices;
-	public void Add(Vector3 vertex) => _vertices.Add(vertex);
+	public void Add(Vector3 vertex, Vector3 normal)
+	{
+		_vertices.Add(vertex);
+		_normals.Add(normal);
+	}
 	public void Add(List<int> indices)
 	{
 		_triangles.AddRange(indices);
 	}
 
-	public void Generate(Transform parentTransform, Material material)
+	public Mesh Generate(Transform parentTransform, Material material)
 	{
 		var meshObject = new GameObject($"{_name}_Mesh")
 		{
@@ -43,6 +48,8 @@ public class CaveMeshGenerator
 		{
 			vertices = vertices.ToArray(),
 			triangles = _triangles.ToArray(),
+			uv = new Vector2[vertices.Count],
+			//normals = _normals.ToArray(),
 			name = $"{_name}"
 		};
 
@@ -55,6 +62,9 @@ public class CaveMeshGenerator
 		meshObject.AddComponent<MeshFilter>().mesh = mesh;
 		meshObject.AddComponent<MeshRenderer>().material = material;
 		meshObject.AddComponent<MeshCollider>().sharedMesh = mesh;
+		meshObject.AddComponent<UVDebugger>();
+
+		return mesh;
 	}
 
 	public struct TriLines
