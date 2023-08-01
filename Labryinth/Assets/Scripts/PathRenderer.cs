@@ -8,9 +8,10 @@ using UnityEngine.AI;
 
 public class PathRenderer : Singleton<PathRenderer>
 {
-	private CaveMeshGenerator _caveMeshGenerator;
+	//private CaveMeshGenerator _caveMeshGenerator;
+	private CaveMeshGenerator _currentMesh;
 
-	private List<Vector3> Vertices => _caveMeshGenerator.Vertices;
+	private List<Vector3> Vertices => _currentMesh.Vertices;
 
 	public float CeilingHeight = 6f;
 	public float WicketWidth = 7f;
@@ -30,9 +31,10 @@ public class PathRenderer : Singleton<PathRenderer>
 
 	public void Generate()
 	{
-		_caveMeshGenerator = new CaveMeshGenerator("Cave", CeilingHeight);
+		//_caveMeshGenerator = new CaveMeshGenerator("Cave", CeilingHeight);
 
 
+		var checkedPaths = new Dictionary<PathID, Wicket>();
 		foreach ((var currentNodeAddress, var currentNode) in Maze.NodeMap)
 		{
 			var adjacentWickets = new List<Wicket>();
@@ -41,34 +43,15 @@ public class PathRenderer : Singleton<PathRenderer>
 			{
 				continue;
 			}
+			//currentNode.CaveMeshGenerator = 
+			_currentMesh = new CaveMeshGenerator(currentNodeAddress.ToString(), CeilingHeight);
 
 			var neighborList = currentNode.AllNeighbors;
 			if (currentNodeAddress == Maze.EndNodeAddress)
 			{
 				neighborList = currentNode.AccessibleNeighbors;
-				var singleNeighbor = currentNode.AccessibleNeighbors[0];
-				int endBranchRadius;
-				float endBranchTheta;
-				if(singleNeighbor.Theta == currentNodeAddress.Theta)
-				{
-					endBranchRadius = currentNodeAddress.Radius + (currentNodeAddress.Radius - singleNeighbor.Radius);
-					endBranchTheta = singleNeighbor.Theta;
-				} else
-				{
-					endBranchRadius = currentNodeAddress.Radius;
-					endBranchTheta = currentNodeAddress.Theta + (currentNodeAddress.Theta - singleNeighbor.Theta);
-				}
-				var endBranchNodeAddress = new NodeAddress(endBranchRadius, endBranchTheta);
-				if(!Maze.NodeMap.TryGetValue(endBranchNodeAddress, out var endBranchNode))
-				{
-					endBranchNode = new Node(endBranchNodeAddress);
-					endBranchNode.SetWorldPosition(MazeGenerator.Instance.Scale);
-				}
-				var wicket = MakeWicket(currentNode.Position, endBranchNode.Position, 0.60f);
-				currentNode.Wickets[endBranchNodeAddress] = wicket;
-
+				var wicket = MakeDummyEndNode(currentNodeAddress, currentNode, adjacentWickets);
 				adjacentWickets.Add(wicket);
-				MakeEnd(currentNode.Position, wicket);
 			}
 
 
@@ -172,8 +155,27 @@ public class PathRenderer : Singleton<PathRenderer>
 
 				AddConnectionTriangles(intersectionCenter, floorVertex, ceilingVertex, wicket, nextWicket);
 			}
-		}
 
+			foreach (var neighborAddress in currentNode.AccessibleNeighbors)
+			{
+				var neighborNode = Maze.NodeMap[neighborAddress];
+				var pathID = new PathID(currentNodeAddress, neighborAddress);
+
+				var wicket1 = currentNode.Wickets[neighborAddress];
+
+				if(checkedPaths.TryGetValue(pathID, out var wicket2))
+				{
+					AddTriangles(CopyWicket(wicket2), wicket1, true);
+					continue;
+				}
+				wicket2 = MakeWicket(currentNode.Position, neighborNode.Position, 0.5f);
+
+				AddTriangles(wicket1, wicket2);
+				checkedPaths.Add(pathID, wicket2);
+			}
+			_currentMesh.Generate(transform, CaveMaterial);
+		}
+		/*
 		// add wickets in each path
 		var checkedPaths = new HashSet<PathID>();
 
@@ -193,16 +195,43 @@ public class PathRenderer : Singleton<PathRenderer>
 
 				var wicket1 = currentNode.Wickets[neighborAddress];
 				var wicket2 = MakeWicket(currentNode.Position, neighborNode.Position, 0.5f);
-				var wicket3 = neighborNode.Wickets[currentNodeAddress];
+				//var wicket3 = neighborNode.Wickets[currentNodeAddress];
 
 				AddTriangles(wicket1, wicket2);
-				AddTriangles(wicket2, wicket3, true);
+				//AddTriangles(wicket2, wicket3, true);
 				
 				checkedPaths.Add(pathID);
 			}
 
 		}
-		_caveMeshGenerator.Generate(transform, CaveMaterial);
+		//_caveMeshGenerator.Generate(transform, CaveMaterial);*/
+	}
+
+	private Wicket MakeDummyEndNode(NodeAddress currentNodeAddress, Node currentNode, List<Wicket> adjacentWickets)
+	{
+		var singleNeighbor = currentNode.AccessibleNeighbors[0];
+		int endBranchRadius;
+		float endBranchTheta;
+		if (singleNeighbor.Theta == currentNodeAddress.Theta)
+		{
+			endBranchRadius = currentNodeAddress.Radius + (currentNodeAddress.Radius - singleNeighbor.Radius);
+			endBranchTheta = singleNeighbor.Theta;
+		} else
+		{
+			endBranchRadius = currentNodeAddress.Radius;
+			endBranchTheta = currentNodeAddress.Theta + (currentNodeAddress.Theta - singleNeighbor.Theta);
+		}
+		var endBranchNodeAddress = new NodeAddress(endBranchRadius, endBranchTheta);
+		if (!Maze.NodeMap.TryGetValue(endBranchNodeAddress, out var endBranchNode))
+		{
+			endBranchNode = new Node(endBranchNodeAddress);
+			endBranchNode.SetWorldPosition(MazeGenerator.Instance.Scale);
+		}
+		var wicket = MakeWicket(currentNode.Position, endBranchNode.Position, 0.60f);
+		currentNode.Wickets[endBranchNodeAddress] = wicket;
+
+		MakeEndMesh(currentNode.Position, wicket);
+		return wicket;
 	}
 
 	private struct WicketConnection
@@ -237,33 +266,6 @@ public class PathRenderer : Singleton<PathRenderer>
 		}
 	}
 
-	private void AddCollider(int vertex1, int vertex2)
-	{
-		return;
-		/*
-		var point1 = Vertices[vertex1];
-		var point2 = Vertices[vertex2];
-		var averagePoint = (point1 + point2) / 2f;
-
-		var normalized = (point2 - point1).normalized;
-		float angle;
-		if (Mathf.Approximately(normalized.z, 0f))
-		{
-			angle = 90f;
-		} else
-		{
-			angle = Mathf.Rad2Deg * Mathf.Atan2(normalized.x , normalized.z);
-		}
-		var distance = (point2 - point1).magnitude;
-		var colliderObject = Instantiate(ColliderTemplate, ColliderTemplate.transform.parent);
-		colliderObject.transform.localPosition = averagePoint;
-		colliderObject.transform.localScale = new Vector3(1f, distance, 1f);
-
-		colliderObject.transform.localEulerAngles = new Vector3(90f, angle, 0f);
-		colliderObject.SetActive(true);	*/
-		
-	}
-
 	private void SealWicket(Vector3 basePoint, Wicket wicket)
 	{
 		AddTriangle(OrientedTriangle(basePoint, new int[]
@@ -278,10 +280,9 @@ public class PathRenderer : Singleton<PathRenderer>
 			wicket[2],
 			wicket[3]
 		}));
-		AddCollider(wicket[0], wicket[3]);
 	}
 
-	private void MakeEnd(Vector3 basePoint, Wicket wicket)
+	private void MakeEndMesh(Vector3 basePoint, Wicket wicket)
 	{
 		var center = Vector3.zero;
 
@@ -369,8 +370,6 @@ public class PathRenderer : Singleton<PathRenderer>
 
 	private void AddConnectionTriangles(Vector3 basePoint, int floorPoint, int ceilingPoint, Wicket wicket1, Wicket wicket2)
 	{
-
-		AddCollider(wicket1[0], wicket2[3]);
 		AddTriangle(OrientedTriangle(basePoint, new int[]
 		{
 			wicket1[0],
@@ -441,7 +440,7 @@ public class PathRenderer : Singleton<PathRenderer>
 		{
 			return;
 		}
-		_caveMeshGenerator.Add(triangle);
+		_currentMesh.Add(triangle);
 	}
 
 
@@ -469,17 +468,6 @@ public class PathRenderer : Singleton<PathRenderer>
 				wicket1[i],
 			});
 		};
-
-		if (flipped)
-		{
-			AddCollider(wicket1[0], wicket2[3]);
-			AddCollider(wicket1[3], wicket2[0]);
-		} else
-		{
-			AddCollider(wicket1[0], wicket2[0]);
-			AddCollider(wicket1[3], wicket2[3]);
-		}
-
 	}
 
 	private Wicket MakeWicket(Vector3 start, Vector3 end, float distance)
@@ -493,13 +481,26 @@ public class PathRenderer : Singleton<PathRenderer>
 			indices.Add(Vertices.Count);
 			AddVertex(vertex);
 		}
-		return new Wicket(indices.ToArray());
+		return new Wicket(indices.ToArray(), vertices.ToArray());
 
+	}
+
+	private Wicket CopyWicket(Wicket wicket)
+	{
+		var vertices = wicket.GetVertices;
+
+		var indices = new List<int>();
+		foreach (var vertex in vertices)
+		{
+			indices.Add(Vertices.Count);
+			AddVertex(vertex);
+		}
+		return new Wicket(indices.ToArray(), vertices.ToArray());
 	}
 
 	private void AddVertex(Vector3 vertex)
 	{
-		_caveMeshGenerator.Add(vertex);
+		_currentMesh.Add(vertex);
 	}
 
 	private Vector3 Vector3Lerp(Vector3 start, Vector3 end, float distance)
@@ -510,6 +511,10 @@ public class PathRenderer : Singleton<PathRenderer>
 
 		return new Vector3(x, y, z);
 	}
+
+	private float BaseNoise => UnityEngine.Random.Range(-0.5f, 0.5f);
+	private float HorizontalCeilingNoise => UnityEngine.Random.Range(-1f, 0.5f);
+	private float VerticalCeilingNoise => UnityEngine.Random.Range(-0.5f, 0.5f);
 
 	private List<Vector3> GetPlanarVertices(Vector3 basePoint, Vector3 normal)
 	{
@@ -525,12 +530,13 @@ public class PathRenderer : Singleton<PathRenderer>
 				ceilingOffset = UnityEngine.Random.Range(2f, 5f);
 				break;
 		}
+
 		var vertices = new List<Vector3>()
 		{
-			basePoint + perpindicular * (WicketWidth + UnityEngine.Random.Range(-0.5f, 0.5f)),
-			basePoint + perpindicular * (0.7f * WicketWidth + UnityEngine.Random.Range(-1f, 0.5f)) + Vector3.up*(CeilingHeight + ceilingOffset + UnityEngine.Random.Range(-0.5f, 0.5f)),
-			basePoint - perpindicular * (0.7f * WicketWidth + UnityEngine.Random.Range(-1f, 0.5f)) + Vector3.up*(CeilingHeight + ceilingOffset + UnityEngine.Random.Range(-0.5f, 0.5f)),
-			basePoint - perpindicular * ( WicketWidth + UnityEngine.Random.Range(-0.5f, 0.5f)),
+			basePoint + perpindicular * (WicketWidth + BaseNoise),
+			basePoint + perpindicular * (0.7f * WicketWidth + HorizontalCeilingNoise) + Vector3.up*(CeilingHeight + ceilingOffset + VerticalCeilingNoise),
+			basePoint - perpindicular * (0.7f * WicketWidth + HorizontalCeilingNoise) + Vector3.up*(CeilingHeight + ceilingOffset + VerticalCeilingNoise),
+			basePoint - perpindicular * ( WicketWidth + BaseNoise),
 		};
 		return vertices;
 	}
@@ -540,19 +546,22 @@ public class PathRenderer : Singleton<PathRenderer>
 public class Wicket
 {
 	protected int[] Points;
+	protected Vector3[] Vertices;
 
 	public Vector3 Vector;
 
-	public Wicket(int[] points)
+	public Wicket(int[] indices, Vector3[] vertices)
 	{
-		Points = points;
+		Points = indices;
+		Vertices = vertices;
 	}
 
 
 	public IEnumerable<int> GetPoints => Points;
+	public IEnumerable<Vector3> GetVertices => Vertices;
 
 	public static implicit operator int[](Wicket wicket) => wicket.Points;
-	public static implicit operator Wicket(int[] points) => new(points);
+	//public static implicit operator Wicket(int[] points) => new(points);
 
 	public int this[Index index]
 	{

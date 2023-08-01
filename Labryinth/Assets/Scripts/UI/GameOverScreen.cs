@@ -84,6 +84,10 @@ public class GameOverScreen : MonoBehaviour
 
     public async UniTask Hide()
 	{
+		if(_targetGameState == null)
+		{
+			return;
+		}
 		_ = _screenFader.DOFade(0f, 0.5f);
 		_ = _targetGameState.RetryButton.DOScale(0f, 0.5f);
 		await _targetGameState.TextHolder.DOScale(0f, 0.5f);

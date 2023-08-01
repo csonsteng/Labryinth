@@ -37,12 +37,12 @@ public class CaveMeshGenerator
 		var vertices = new List<Vector3>();
 		vertices.AddRange(_vertices);
 
-		SubDivide(2, _triangles, out var finalTriangles, ref vertices);
+		//SubDivide(2, _triangles, out var finalTriangles, ref vertices);
 
 		var mesh = new Mesh
 		{
 			vertices = vertices.ToArray(),
-			triangles = finalTriangles.ToArray(),
+			triangles = _triangles.ToArray(),
 			name = $"{_name}"
 		};
 
@@ -53,7 +53,7 @@ public class CaveMeshGenerator
 		OverheadCameraView.Instance.SetCameraBounds(mesh.bounds);
 
 		meshObject.AddComponent<MeshFilter>().mesh = mesh;
-		meshObject.AddComponent<MeshRenderer>().material = new Material(material);
+		meshObject.AddComponent<MeshRenderer>().material = material;
 		meshObject.AddComponent<MeshCollider>().sharedMesh = mesh;
 	}
 

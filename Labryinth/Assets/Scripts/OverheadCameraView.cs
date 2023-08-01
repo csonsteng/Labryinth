@@ -18,6 +18,7 @@ public class OverheadCameraView : Singleton<OverheadCameraView>
 
 	public async void SetCameraBounds(Bounds bounds)
 	{
+		return;
 		_mapBacking.SetActive(true);
 		_overheadCamera.transform.position = new Vector3(bounds.center.x, 90f, bounds.center.z);
 		var size = bounds.size;

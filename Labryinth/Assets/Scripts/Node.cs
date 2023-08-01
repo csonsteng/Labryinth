@@ -18,6 +18,8 @@ public class Node
 
 	public Dictionary<NodeAddress, Wicket> Wickets = new Dictionary<NodeAddress, Wicket>();
 
+	public CaveMeshGenerator CaveMeshGenerator;
+
 
 	public Node(int radius, float theta)
 	{
