@@ -1,8 +1,8 @@
 ﻿using UnityEngine;
 
-public partial class PathRenderer
+namespace CaveCreator
 {
-	private class CaveBounds
+	public class CaveBounds
 	{
 		float minX = float.MaxValue;
 		float minZ = float.MaxValue;

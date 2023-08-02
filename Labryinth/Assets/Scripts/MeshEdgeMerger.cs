@@ -1,7 +1,7 @@
 ﻿using System.Collections.Generic;
-public partial class PathRenderer
+namespace CaveCreator
 {
-	private class NormalMerger
+	public class MeshEdgeMerger
 	{
 		public CaveMeshGenerator MeshGenerator1;
 		public CaveMeshGenerator MeshGenerator2;
@@ -38,12 +38,12 @@ public partial class PathRenderer
 
 				var vertex1 = mesh1Vertices[Mesh1Indices[i]];
 				var vertex2 = mesh1Vertices[Mesh1Indices[i == Mesh1Indices.Length - 1 ? 0 : i + 1]];
-				var vertexInfo = new CaveMeshGenerator.NewVertexInfo(vertex1, vertex2); // these vertices should be identical in both meshes
+				var vertexInfo = new ConnectedVertices(vertex1, vertex2); // these vertices should be identical in both meshes
 
 				var vertexPairings = new List<VertexPairing>()
-			{
-				new VertexPairing(vertexInfo, vertexInfo)
-			};
+				{
+					new VertexPairing(vertexInfo, vertexInfo)
+				};
 
 				while (vertexPairings.Count > 0)
 				{
@@ -65,14 +65,26 @@ public partial class PathRenderer
 					var centerVertex1 = mesh1Vertices[centerIndex1];
 					var centerVertex2 = mesh2Vertices[centerIndex2];
 
-					vertexPairings.Add(new VertexPairing(new CaveMeshGenerator.NewVertexInfo(info1.Vertex1, centerVertex1), new CaveMeshGenerator.NewVertexInfo(info2.Vertex1, centerVertex2)));
-					vertexPairings.Add(new VertexPairing(new CaveMeshGenerator.NewVertexInfo(info1.Vertex2, centerVertex1), new CaveMeshGenerator.NewVertexInfo(info2.Vertex2, centerVertex2)));
+					vertexPairings.Add(new VertexPairing(new ConnectedVertices(info1.Vertex1, centerVertex1), new ConnectedVertices(info2.Vertex1, centerVertex2)));
+					vertexPairings.Add(new VertexPairing(new ConnectedVertices(info1.Vertex2, centerVertex1), new ConnectedVertices(info2.Vertex2, centerVertex2)));
 
 
 
 					var averageVertex = (centerVertex1 + centerVertex2) / 2f;
 					mesh1Vertices[centerIndex1] = averageVertex;
 					mesh2Vertices[centerIndex2] = averageVertex;
+
+					normal1 = mesh1Normals[centerIndex1];
+					normal2 = mesh2Normals[centerIndex2];
+					averageNormal = (normal1 + normal2) / 2f;
+					mesh1Normals[centerIndex1] = averageNormal;
+					mesh2Normals[centerIndex2] = averageNormal;
+
+					tangent1 = mesh1Tangents[centerIndex1];
+					tangent2 = mesh2Tangents[centerIndex2];
+					averageTangent = (tangent1 + tangent2) / 2f;
+					mesh1Tangents[centerIndex1] = averageTangent;
+					mesh2Tangents[centerIndex2] = averageTangent;
 				}
 			}
 			Mesh1.normals = mesh1Normals;
@@ -85,10 +97,10 @@ public partial class PathRenderer
 
 		private class VertexPairing
 		{
-			public CaveMeshGenerator.NewVertexInfo VertexInfo1;
-			public CaveMeshGenerator.NewVertexInfo VertexInfo2;
+			public ConnectedVertices VertexInfo1;
+			public ConnectedVertices VertexInfo2;
 
-			public VertexPairing(CaveMeshGenerator.NewVertexInfo vertexInfo1, CaveMeshGenerator.NewVertexInfo vertexInfo2)
+			public VertexPairing(ConnectedVertices vertexInfo1, ConnectedVertices vertexInfo2)
 			{
 				VertexInfo1 = vertexInfo1;
 				VertexInfo2 = vertexInfo2;

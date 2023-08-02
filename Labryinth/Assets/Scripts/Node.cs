@@ -1,6 +1,7 @@
 ﻿using System.Collections.Generic;
 using System.Net;
 using UnityEngine;
+using CaveCreator;
 
 public class Node
 {
@@ -15,11 +16,6 @@ public class Node
 	public GameObject GameObject;
 	public Vector3 Position => _position;
 	private Vector3 _position;
-
-	public Dictionary<NodeAddress, Wicket> Wickets = new Dictionary<NodeAddress, Wicket>();
-
-	public CaveMeshGenerator CaveMeshGenerator;
-
 
 	public Node(int radius, float theta)
 	{

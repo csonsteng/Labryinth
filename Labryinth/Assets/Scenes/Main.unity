@@ -6197,12 +6197,12 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: e21b3956e64b6a944a9a3d8719e8882f, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  CeilingHeight: 8
-  WicketWidth: 7
+  _ceilingHeight: 8
+  _wicketWidth: 7
   ColliderTemplate: {fileID: 45664750}
-  CaveMaterial: {fileID: 2100000, guid: 51f53c7e6c392fa46bbb8770d086ad7a, type: 2}
-  FinishMaterial: {fileID: 2100000, guid: 414420964c3d05744bdcffe3c7e0c0e1, type: 2}
-  FinishFog: {fileID: 296834211}
+  _caveMaterial: {fileID: 2100000, guid: 51f53c7e6c392fa46bbb8770d086ad7a, type: 2}
+  _finishMaterial: {fileID: 2100000, guid: 414420964c3d05744bdcffe3c7e0c0e1, type: 2}
+  _finishFog: {fileID: 296834211}
 --- !u!1 &705507993
 GameObject:
   m_ObjectHideFlags: 0
