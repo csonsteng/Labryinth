@@ -90,7 +90,7 @@ public class Player : Singleton<Player>
 		var forwardSpeed = WalkSpeed * (running ? RunMultiplier : 1f);
 		var strafeSpeed = StrafeSpeed * (running ? RunMultiplier : 1f);
 
-		var localMoveVector = new Vector3(strafeMovement * strafeSpeed, 1f - Position.y, forwardMovement * forwardSpeed) * Time.deltaTime;
+		var localMoveVector = new Vector3(strafeMovement * strafeSpeed, 0f, forwardMovement * forwardSpeed) * Time.deltaTime;
 		var convertedMoveVector = Quaternion.Euler(transform.localEulerAngles) * localMoveVector;
 
 		_controller.Move(convertedMoveVector);
