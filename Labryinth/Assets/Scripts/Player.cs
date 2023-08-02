@@ -31,7 +31,7 @@ public class Player : Singleton<Player>
 	}
 	public void Initialize()
 	{
-        transform.position = Maze.StartNode.Position + new Vector3(0f, 1f, 0f);
+        transform.position = Maze.StartNode.Position + new Vector3(0f, _controller.skinWidth + _controller.height/2f, 0f);
         transform.localEulerAngles = Vector3.zero;
 		_characterCamera.transform.localEulerAngles = Vector3.zero;
 		_settings = Settings.Instance.PlayerSettings;
