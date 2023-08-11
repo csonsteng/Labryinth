@@ -61,8 +61,8 @@ public class Player : Singleton<Player>
 	private void OnDrawGizmos()
 	{
 		Gizmos.color = Color.blue;
-		Gizmos.DrawSphere(transform.position, 7.5f);
-		Gizmos.DrawCube(transform.position + Quaternion.Euler(transform.localEulerAngles) * Vector3.forward * 10f, Vector3.one * 5f);
+		//Gizmos.DrawSphere(transform.position, 7.5f);
+		//Gizmos.DrawCube(transform.position + Quaternion.Euler(transform.localEulerAngles) * Vector3.forward * 10f, Vector3.one * 5f);
 	}
 
 	private void CheckInteractions()
