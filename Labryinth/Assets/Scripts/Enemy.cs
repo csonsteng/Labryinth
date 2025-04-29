@@ -66,6 +66,13 @@ public class Enemy : Singleton<Enemy>
 	private List<NodeAddress> _huntPath = new();
 	private int _layerMask;
 
+	private void Awake()
+	{
+#if !UNITY_EDITOR
+		DebugText.gameObject.SetActive(false);
+#endif
+	}
+
 	public void Spawn()
 	{
 		_layerMask = LayerMask.GetMask(new string[] { "Characters", "Walls" });
