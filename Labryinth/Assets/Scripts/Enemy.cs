@@ -1,14 +1,7 @@
-using System.Collections;
+using Cysharp.Threading.Tasks;
 using System.Collections.Generic;
-using System.Linq;
-using System.Text;
 using TMPro;
-using UnityEditor.Experimental.GraphView;
 using UnityEngine;
-using UnityEngine.AI;
-using UnityEngine.Android;
-using UnityEngine.Experimental.AI;
-using UnityEngine.UIElements;
 
 public class Enemy : Singleton<Enemy>
 {
@@ -18,6 +11,7 @@ public class Enemy : Singleton<Enemy>
 	[SerializeField] private float _wanderSpeed = 15f;
 	[SerializeField] private float _huntSpeed = 22.5f;
 	[SerializeField] private float _chaseSpeed = 30f;
+	[SerializeField] private LODAnimatorGroup _animator;
 
 	public TextMeshProUGUI DebugText;
 	/*
@@ -53,6 +47,7 @@ public class Enemy : Singleton<Enemy>
 	{
 		Uninitialized,
 		Wandering,
+		Sniffing,
 		Hunting,
 		Chasing,
 		Frustrated,
@@ -90,7 +85,7 @@ public class Enemy : Singleton<Enemy>
 	private void Update()
 	{
 
-		if(_state == State.Uninitialized)
+		if(_state == State.Uninitialized || _state == State.Sniffing)
 		{
 			return;
 		}
@@ -102,7 +97,7 @@ public class Enemy : Singleton<Enemy>
 			Chase();
 		}
 
-		if (_state == State.Frustrated)	// frustration delay
+		if (_state == State.Frustrated) // frustration delay
 		{
 			WaitInFrustration();
 			return;
@@ -134,6 +129,7 @@ public class Enemy : Singleton<Enemy>
 		// todo: since node addresses are in radial coordinates, we should be able to move along the curvature of the maze to make movement look more natural
 		// good idea, buuuuuut our maze isn't actually made as a circle. Enemy ends up pathing outside the walls. Straight lines better (and easier)
 		transform.position += speed * Time.deltaTime * VectorToTarget().normalized;
+		transform.LookAt(_cachedTarget);
 	}
 
 
@@ -264,12 +260,15 @@ public class Enemy : Singleton<Enemy>
 	{
 		_state = State.Frustrated;
 		_frustrationTime = 5f; // todo: make this scale based on how long the chase was
+		_animator.SetTrigger("Frustrate");
 		_visitedNodes.Clear();
 	}
 
-	private void Hunt()
+	private async void Hunt()
 	{
-		// todo: animation delay while tries to find correct direction.
+		_state = State.Sniffing;
+		_animator.SetTrigger("Hunt");
+		await UniTask.Delay(4840);
 		_state = State.Hunting;
 		_visitedNodes.Clear();
 
@@ -355,8 +354,7 @@ public class Enemy : Singleton<Enemy>
 			break;
 		}
 
-		
-
+		_animator.SetTrigger("Wander");
 		_lastNode = _currentNode;
 		_state = State.Wandering;
 		_targetNode = Maze.NodeMap[targetNodeAddress];
