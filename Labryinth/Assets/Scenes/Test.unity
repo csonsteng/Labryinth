@@ -599,34 +599,6 @@ PrefabInstance:
       propertyPath: m_LocalEulerAnglesHint.z
       value: 0
       objectReference: {fileID: 0}
-    - target: {fileID: 5604262155593828687, guid: ff865fd440a765349820d9bcc4f36dc3, type: 3}
-      propertyPath: m_LocalRotation.w
-      value: 1
-      objectReference: {fileID: 0}
-    - target: {fileID: 5604262155593828687, guid: ff865fd440a765349820d9bcc4f36dc3, type: 3}
-      propertyPath: m_LocalRotation.y
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 5604262155593828687, guid: ff865fd440a765349820d9bcc4f36dc3, type: 3}
-      propertyPath: m_LocalRotation.z
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 5604262155593828687, guid: ff865fd440a765349820d9bcc4f36dc3, type: 3}
-      propertyPath: m_LocalEulerAnglesHint.y
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 5604262155593828687, guid: ff865fd440a765349820d9bcc4f36dc3, type: 3}
-      propertyPath: m_LocalEulerAnglesHint.z
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 7518778449817403260, guid: ff865fd440a765349820d9bcc4f36dc3, type: 3}
-      propertyPath: _iconRadius
-      value: 250
-      objectReference: {fileID: 0}
-    - target: {fileID: 7518778449817403260, guid: ff865fd440a765349820d9bcc4f36dc3, type: 3}
-      propertyPath: _testSprites.Array.size
-      value: 6
-      objectReference: {fileID: 0}
     m_RemovedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: ff865fd440a765349820d9bcc4f36dc3, type: 3}
 --- !u!224 &848079163 stripped
