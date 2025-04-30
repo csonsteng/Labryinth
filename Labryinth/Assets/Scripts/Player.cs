@@ -20,6 +20,7 @@ public class Player : Singleton<Player>
 
 
 	private bool _canInteract = false;
+	private bool _uiOpen = false;
 	private Vector3 _facingDirection;
 
 	private bool _initialized;
@@ -38,6 +39,14 @@ public class Player : Singleton<Player>
         gameObject.SetActive(true);
 		_canInteract = true;
 		_initialized = true;
+		RadialWheel.Instance.RegisterListeners(() => OnUIOpen(true), () => OnUIOpen(false));
+	}
+
+	private void OnUIOpen(bool open)
+	{
+		_uiOpen = open;
+		Cursor.lockState = open ? CursorLockMode.Confined : CursorLockMode.Locked;
+		Cursor.visible = open;
 	}
 
 	public void OnGameOver()
@@ -48,7 +57,13 @@ public class Player : Singleton<Player>
 	private void Update()
 	{
 		if (!_initialized) return;
-		if (Input.GetKeyDown(KeyCode.Escape)) {  }
+		if (Input.GetKeyDown(KeyCode.Escape)) 
+		{
+			GameManager.Instance.Pause();
+			return;
+		}
+		if (!GameManager.IsRunning) return;
+		if (_uiOpen) { return; }
 		CheckInteractions();
 
 		UpdatePosition();
@@ -67,9 +82,9 @@ public class Player : Singleton<Player>
 
 	private void CheckInteractions()
 	{
-		if (Input.GetAxis("Interact") <= 0f)
+		if (Input.GetAxis("Interact") <= 0f && Input.GetAxis("SecondaryInteract") <= 0f)
 		{
-			_canInteract = true;	// pauper's debouncing
+			_canInteract = true;
 			return;
 		}
 		if(!_canInteract)
@@ -77,7 +92,12 @@ public class Player : Singleton<Player>
 			return;
 		}
 		_canInteract = false;
-		InteractableManager.Instance.OnInteractButtonPressed();
+		if (Input.GetAxis("Interact") > 0f)
+		{
+			InteractableManager.Instance.OnInteractButtonPressed();
+			return;
+		}
+		InteractableManager.Instance.OnSecondaryButtonPressed();
 	}
 
 	private void UpdatePosition()

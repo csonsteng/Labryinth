@@ -92,7 +92,8 @@ public class Enemy : Singleton<Enemy>
 	private void Update()
 	{
 
-		if(_state == State.Uninitialized || _state == State.Sniffing)
+		if (!GameManager.IsRunning) return;
+		if (_state == State.Uninitialized || _state == State.Sniffing)
 		{
 			return;
 		}

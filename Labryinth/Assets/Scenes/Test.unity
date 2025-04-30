@@ -599,6 +599,58 @@ PrefabInstance:
       propertyPath: m_LocalEulerAnglesHint.z
       value: 0
       objectReference: {fileID: 0}
+    - target: {fileID: 5604262155232295638, guid: ff865fd440a765349820d9bcc4f36dc3, type: 3}
+      propertyPath: m_IsActive
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 7518778449817403260, guid: ff865fd440a765349820d9bcc4f36dc3, type: 3}
+      propertyPath: _iconRadius
+      value: 275
+      objectReference: {fileID: 0}
+    - target: {fileID: 7518778449817403260, guid: ff865fd440a765349820d9bcc4f36dc3, type: 3}
+      propertyPath: _testSprites.Array.size
+      value: 10
+      objectReference: {fileID: 0}
+    - target: {fileID: 7518778449817403260, guid: ff865fd440a765349820d9bcc4f36dc3, type: 3}
+      propertyPath: _testSprites.Array.data[0]
+      value: 
+      objectReference: {fileID: 21300000, guid: a1176bca399361a41bccb201176adca4, type: 3}
+    - target: {fileID: 7518778449817403260, guid: ff865fd440a765349820d9bcc4f36dc3, type: 3}
+      propertyPath: _testSprites.Array.data[1]
+      value: 
+      objectReference: {fileID: 21300000, guid: 51152a8a8af76604893e0debf5dba011, type: 3}
+    - target: {fileID: 7518778449817403260, guid: ff865fd440a765349820d9bcc4f36dc3, type: 3}
+      propertyPath: _testSprites.Array.data[2]
+      value: 
+      objectReference: {fileID: 21300000, guid: f32f97c5439695349b3382ae3cdb047c, type: 3}
+    - target: {fileID: 7518778449817403260, guid: ff865fd440a765349820d9bcc4f36dc3, type: 3}
+      propertyPath: _testSprites.Array.data[3]
+      value: 
+      objectReference: {fileID: 21300000, guid: c9d0c6d226f43874c8b58e0c02282632, type: 3}
+    - target: {fileID: 7518778449817403260, guid: ff865fd440a765349820d9bcc4f36dc3, type: 3}
+      propertyPath: _testSprites.Array.data[4]
+      value: 
+      objectReference: {fileID: 21300000, guid: 917ee5be001e9a14dbad33691f0362e3, type: 3}
+    - target: {fileID: 7518778449817403260, guid: ff865fd440a765349820d9bcc4f36dc3, type: 3}
+      propertyPath: _testSprites.Array.data[5]
+      value: 
+      objectReference: {fileID: 21300000, guid: a68dc908e1452ae4b8156feebd8f172e, type: 3}
+    - target: {fileID: 7518778449817403260, guid: ff865fd440a765349820d9bcc4f36dc3, type: 3}
+      propertyPath: _testSprites.Array.data[6]
+      value: 
+      objectReference: {fileID: 21300000, guid: c2ddbee623f3b054fa7318b0655f02a9, type: 3}
+    - target: {fileID: 7518778449817403260, guid: ff865fd440a765349820d9bcc4f36dc3, type: 3}
+      propertyPath: _testSprites.Array.data[7]
+      value: 
+      objectReference: {fileID: 21300000, guid: 54588a086e23021488c76483e107807b, type: 3}
+    - target: {fileID: 7518778449817403260, guid: ff865fd440a765349820d9bcc4f36dc3, type: 3}
+      propertyPath: _testSprites.Array.data[8]
+      value: 
+      objectReference: {fileID: 21300000, guid: 3aa7795b0adbf4c449eaf379c4a9c576, type: 3}
+    - target: {fileID: 7518778449817403260, guid: ff865fd440a765349820d9bcc4f36dc3, type: 3}
+      propertyPath: _testSprites.Array.data[9]
+      value: 
+      objectReference: {fileID: 21300000, guid: 69fc226e14152814ca7925772916dbca, type: 3}
     m_RemovedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: ff865fd440a765349820d9bcc4f36dc3, type: 3}
 --- !u!224 &848079163 stripped

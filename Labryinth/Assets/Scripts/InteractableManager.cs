@@ -117,6 +117,27 @@ public class InteractableManager : Singleton<InteractableManager>
 		DrawOnWall();
 	}
 
+	public void OnSecondaryButtonPressed()
+	{
+		if (!_hasTarget)
+		{
+			return;
+		}
+		if (_targetInteractable != null)
+		{
+			return;
+		}
+		var pts = GetWallDrawPoints();
+		if (pts == null || pts.Count == 0)
+		{
+			return;
+		}
+		RadialWheel.Instance.Open(_wallMarkerManager.WallMarkSprites, (selected) =>
+		{
+			_wallMarkerManager.MarkWall(pts, selected);
+		});
+	}
+
 	private Vector3[] _faceSprayPlanePoints = new Vector3[]
 	{
 		new Vector3(0f, 0.707f, 0f),
@@ -172,6 +193,50 @@ public class InteractableManager : Singleton<InteractableManager>
 				Debug.DrawLine(pt, pt2, Color.red, 3f);
 			}
 		}
-		_wallMarkerManager.MarkWall(pts);
+		_wallMarkerManager.MarkWall(pts, 0);
+	}
+
+
+	private List<Vector3> GetWallDrawPoints()
+	{
+		var pts = new List<Vector3>();
+		var direction = Player.FacingDirection;
+		var rotation = Quaternion.LookRotation(direction);
+		var averagePoint = Vector3.zero;
+		foreach (var offset in _faceSprayPlanePoints)
+		{
+			var origin = transform.position + rotation * offset;
+			var ray = new Ray(origin, direction);
+			if (!Physics.Raycast(ray, out var hitInfo, 8f, _wallOnlyMask))
+			{
+				Debug.Log("Cannot draw here");
+				return null;
+			}
+			pts.Add(hitInfo.point);
+			averagePoint += hitInfo.point;
+		}
+
+		averagePoint /= 3f;
+
+
+		var plane = new Plane(pts[0], pts[1], pts[2]);
+		direction = -plane.normal;
+		rotation = Quaternion.LookRotation(direction);
+
+
+
+		pts.Clear();
+		foreach (var offset in WallMarkerManager.UVs)
+		{
+			var origin = averagePoint - direction + rotation * offset / 2f;
+			var ray = new Ray(origin, direction);
+			if (!Physics.Raycast(ray, out var hitInfo, 2f, _wallOnlyMask))
+			{
+				Debug.Log("Cannot draw here");
+				return null;
+			}
+			pts.Add(hitInfo.point - direction * 0.05f);
+		}
+		return pts;
 	}
 }

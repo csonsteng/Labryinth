@@ -1,0 +1,16 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 54df7363f84f30547bd667fd624511c3, type: 3}
+  m_Name: WallMarkTally5
+  m_EditorClassIdentifier: 
+  _material: {fileID: 2100000, guid: 478aa0cb337430d498a27ca5d471f5da, type: 2}
+  _icon: {fileID: 21300000, guid: 917ee5be001e9a14dbad33691f0362e3, type: 3}
