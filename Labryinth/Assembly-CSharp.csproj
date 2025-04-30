@@ -65,7 +65,7 @@
     <Compile Include="Assets\Scripts\CaveBounds.cs" />
     <Compile Include="Assets\Scripts\GameManager.cs" />
     <Compile Include="Assets\Scripts\InteractableManager.cs" />
-    <Compile Include="Assets\Scripts\WallMarkerManager.cs" />
+    <Compile Include="Assets\Scripts\WallMarks\WallMarkerManager.cs" />
     <Compile Include="Assets\Scripts\Finish.cs" />
     <Compile Include="Assets\Scripts\OverheadCameraView.cs" />
     <Compile Include="Assets\Scripts\UI\GameOverScreen.cs" />
@@ -74,7 +74,7 @@
     <Compile Include="Assets\Scripts\Interactable.cs" />
     <Compile Include="Assets\Scripts\NodeAddress.cs" />
     <Compile Include="Assets\Scripts\MazeGenerator.cs" />
-    <Compile Include="Assets\Scripts\WallMarker.cs" />
+    <Compile Include="Assets\Scripts\WallMarks\WallMarker.cs" />
     <Compile Include="Assets\Scripts\CaveMeshGenerator.cs" />
     <Compile Include="Assets\Scripts\Arm.cs" />
     <Compile Include="Assets\Scripts\Path.cs" />
@@ -90,6 +90,13 @@
     <Compile Include="Assets\Scripts\PathID.cs" />
     <Compile Include="Assets\Scripts\Pathfinder.cs" />
     <Compile Include="Assets\Scripts\LODAnimatorGroup.cs" />
+    <Compile Include="Assets\Scripts\UI\BuildNumberDisplay.cs" />
+    <Compile Include="Assets\Scripts\UI\RadialWheel\RadialWheelItem.cs" />
+    <Compile Include="Assets\DebugString.cs" />
+    <Compile Include="Assets\Scripts\UI\TargetableFilledImage.cs" />
+    <Compile Include="Assets\Scripts\UI\RadialWheel\RadialWheel.cs" />
+    <Compile Include="Assets\Scripts\WallMarks\WallMarkConfiguration.cs" />
+    <Compile Include="Assets\Scripts\UI\RadialWheel\IRadialWheelItem.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="Assets\TextMesh Pro\Shaders\TMPro.cginc" />
@@ -792,6 +799,9 @@
     </Reference>
     <Reference Include="Unity.RenderPipelines.Core.Editor">
       <HintPath>Library\ScriptAssemblies\Unity.RenderPipelines.Core.Editor.dll</HintPath>
+    </Reference>
+    <Reference Include="Unity.2D.Sprite.Editor">
+      <HintPath>Library\ScriptAssemblies\Unity.2D.Sprite.Editor.dll</HintPath>
     </Reference>
   </ItemGroup>
   <ItemGroup>
