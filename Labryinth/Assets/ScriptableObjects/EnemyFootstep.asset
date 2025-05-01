@@ -1,0 +1,19 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 5ec95b6ae2f0df247983d39bb9394484, type: 3}
+  m_Name: EnemyFootstep
+  m_EditorClassIdentifier: 
+  sounds:
+  - {fileID: 8300000, guid: 9a6fcb2526feac345abff51b5a485a43, type: 3}
+  - {fileID: 8300000, guid: 97b6d03559879884eba8f939a7b238d0, type: 3}
+  - {fileID: 8300000, guid: f7f6d9c48e695f44ba50b6aa9c18ca51, type: 3}
+  - {fileID: 8300000, guid: e2b97f745eb39d640b42875c046efc16, type: 3}

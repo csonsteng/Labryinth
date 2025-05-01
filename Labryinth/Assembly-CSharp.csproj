@@ -97,6 +97,9 @@
     <Compile Include="Assets\Scripts\UI\RadialWheel\RadialWheel.cs" />
     <Compile Include="Assets\Scripts\WallMarks\WallMarkConfiguration.cs" />
     <Compile Include="Assets\Scripts\UI\RadialWheel\IRadialWheelItem.cs" />
+    <Compile Include="Assets\Scripts\SpectatorController.cs" />
+    <Compile Include="Assets\Scripts\SoundEffect.cs" />
+    <Compile Include="Assets\AnimationEventRelay.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="Assets\TextMesh Pro\Shaders\TMPro.cginc" />

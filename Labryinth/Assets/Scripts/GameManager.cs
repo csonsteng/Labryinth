@@ -12,6 +12,8 @@ public class GameManager : Singleton<GameManager>
 	private GameState _state;
 	private GameState _suspendedState;
 
+	public bool SpectatorMode { get; private set; }
+
 	public enum GameState
 	{
 		Initializing,
@@ -35,6 +37,16 @@ public class GameManager : Singleton<GameManager>
 		Player.Instance.Initialize();
 		_enemy.Spawn();
 		_state = GameState.Running;
+	}
+
+	private void Update()
+	{
+		if (Input.GetKeyUp(KeyCode.K))
+		{
+			SpectatorMode = !SpectatorMode;
+			Player.Instance.EnableCamera(!SpectatorMode);
+			SpectatorController.Instance.EnableCamera(SpectatorMode);
+		}
 	}
 
 	[Button]
@@ -71,9 +83,9 @@ public class GameManager : Singleton<GameManager>
 		Enemy.Instance.OnGameOver();
 	}
 
-	private void OnApplicationPause(bool pause) => SetPauseState(pause);
+	//private void OnApplicationPause(bool pause) => SetPauseState(pause);
 
-	private void OnApplicationFocus(bool focus) => SetPauseState(!focus);
+	//private void OnApplicationFocus(bool focus) => SetPauseState(!focus);
 
 	public void Pause()
 	{

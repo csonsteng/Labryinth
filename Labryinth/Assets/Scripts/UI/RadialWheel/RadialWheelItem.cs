@@ -28,7 +28,6 @@ public class RadialWheelItem : MonoBehaviour, IPointerEnterHandler, IPointerExit
     /// </summary>
     public void OnClick()
     {
-        Debug.Log("clicked");
 		_callback?.Invoke();
     }
 

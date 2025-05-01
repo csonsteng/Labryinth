@@ -42,6 +42,11 @@ public class Player : Singleton<Player>
 		RadialWheel.Instance.RegisterListeners(() => OnUIOpen(true), () => OnUIOpen(false));
 	}
 
+	public void EnableCamera(bool enable)
+	{
+		_characterCamera.gameObject.SetActive(enable);
+	}
+
 	private void OnUIOpen(bool open)
 	{
 		_uiOpen = open;
@@ -59,10 +64,11 @@ public class Player : Singleton<Player>
 		if (!_initialized) return;
 		if (Input.GetKeyDown(KeyCode.Escape)) 
 		{
-			GameManager.Instance.Pause();
+			//GameManager.Instance.Pause();
 			return;
 		}
 		if (!GameManager.IsRunning) return;
+		if (GameManager.Instance.SpectatorMode) return;
 		if (_uiOpen) { return; }
 		CheckInteractions();
 

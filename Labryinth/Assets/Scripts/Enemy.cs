@@ -12,6 +12,8 @@ public class Enemy : Singleton<Enemy>
 	[SerializeField] private float _huntSpeed = 22.5f;
 	[SerializeField] private float _chaseSpeed = 30f;
 	[SerializeField] private LODAnimatorGroup _animator;
+	[SerializeField] private SoundEffect _footstepSound;
+	[SerializeField] private AudioSource _audioSource;
 
 	public TextMeshProUGUI DebugText;
 	/*
@@ -138,6 +140,11 @@ public class Enemy : Singleton<Enemy>
 		// good idea, buuuuuut our maze isn't actually made as a circle. Enemy ends up pathing outside the walls. Straight lines better (and easier)
 		transform.position += speed * Time.deltaTime * VectorToTarget().normalized;
 		transform.LookAt(_cachedTarget);
+	}
+
+	public void PlayFootStep()
+	{
+		_footstepSound.Play(_audioSource);
 	}
 
 
